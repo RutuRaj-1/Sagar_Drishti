@@ -322,7 +322,7 @@ http://localhost:5173
 
 ---
 
-## 👥 Team & Acknowledgments
+## Acknowledgments
 
 - **Hackathon**: Smart India Hackathon (SIH 2026) — Software Edition
 - **Problem Statement ID**: 26067
@@ -331,7 +331,3 @@ http://localhost:5173
 - **Repository**: [https://github.com/RutuRaj-1/Sagar_Drishti](https://github.com/RutuRaj-1/Sagar_Drishti)
 
 ---
-
-<div align="center">
-  <sub>Developed with ❤️ for Smart India Hackathon 2026 · Dedicated to the advancement of Indian Ocean Science & Disaster Resilience.</sub>
-</div>
