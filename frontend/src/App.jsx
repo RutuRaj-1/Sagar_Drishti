@@ -300,12 +300,12 @@ export default function App() {
             </div>
 
             {/* Coordinate / hover info — top-left, above Leaflet layers */}
-            {hoverInfo && viewMode === "map" && (
+              {hoverInfo && viewMode === "map" && (
               <div className="coord-info" style={{ zIndex: 500 }}>
                 <strong>{hoverInfo.lat?.toFixed(3)}°N &nbsp; {hoverInfo.lon?.toFixed(3)}°E</strong>
                 &nbsp;·&nbsp;
                 {hoverInfo.value != null
-                  ? <span style={{ color: vc, fontFamily: "var(--font-mono)" }}>{hoverInfo.value.toFixed(3)}</span>
+                  ? <span style={{ color: vc, fontFamily: "var(--font-mono)", fontWeight: 600 }}>{hoverInfo.value.toFixed(3)}</span>
                   : "—"}
                 &nbsp;{activeVarInfo?.units}
               </div>
@@ -330,10 +330,11 @@ export default function App() {
             {surfaceLoading && surface && (
               <div style={{
                 position: "absolute", top: 10, right: 10,
-                background: "rgba(3,13,22,0.85)", border: "1px solid var(--border)",
-                borderRadius: 9, padding: "7px 13px", fontSize: 10.5, color: "var(--muted)",
-                display: "flex", alignItems: "center", gap: 8, backdropFilter: "blur(10px)",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.4)"
+                background: "var(--steel-100)", border: "2px solid var(--steel-300)",
+                borderRadius: "var(--radius)", padding: "7px 13px", fontSize: 10.5,
+                color: "var(--steel-600)",
+                display: "flex", alignItems: "center", gap: 8,
+                boxShadow: "var(--shadow-hard-sm)"
               }}>
                 <div className="loading-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
                 Updating CMEMS…
@@ -488,13 +489,13 @@ function ArgoExplorer({ instruments, allTrajectories, selectedId, onSelect, prof
         {!selectedId && (
           <div style={{
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            height: "60%", color: "var(--muted)", textAlign: "center", gap: 16
+            height: "60%", color: "var(--steel-500)", textAlign: "center", gap: 16
           }}>
-            <div style={{ fontSize: 48, opacity: 0.4 }}>🔴</div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: "var(--text-2)" }}>
+            <div style={{ fontSize: 48, opacity: 0.35 }}>🔴</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: "var(--steel-700)", letterSpacing: "-0.02em" }}>
               Select a Float
             </div>
-            <div style={{ fontSize: 12, maxWidth: 360, lineHeight: 1.7 }}>
+            <div style={{ fontSize: 12, maxWidth: 360, lineHeight: 1.7, color: "var(--steel-500)" }}>
               Choose an Argo float from the sidebar to view its multi-parameter depth profile,
               T-S diagram, and CMEMS model comparison.
             </div>

@@ -143,7 +143,7 @@ export default function StatsDashboard({ meta, variable, date }) {
           <div className="panel-section-title"><span>🔗</span> Correlation</div>
           <div className="field">
             <label>Variable A</label>
-            <div style={{ padding: "7px 10px", background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12.5, color: "var(--accent)" }}>
+            <div style={{ padding: "7px 10px", background: "var(--steel-200)", border: "2px solid var(--steel-300)", borderRadius: "var(--radius)", fontSize: 12.5, color: "var(--steel-800)", fontFamily: "var(--font-display)", fontWeight: 600 }}>
               {variable}
             </div>
           </div>
@@ -169,10 +169,10 @@ export default function StatsDashboard({ meta, variable, date }) {
 
         {/* Empty state */}
         {!stats && !trend && !corr && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--muted)", textAlign: "center" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🌊</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-2)", marginBottom: 8 }}>Analytics Dashboard</div>
-            <div style={{ fontSize: 12, maxWidth: 360, lineHeight: 1.7 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--steel-500)", textAlign: "center" }}>
+            <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.35 }}>🌊</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--steel-700)", marginBottom: 8, fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>Analytics Dashboard</div>
+            <div style={{ fontSize: 12, maxWidth: 360, lineHeight: 1.7, color: "var(--steel-500)" }}>
               Use the controls on the left to compute spatial statistics, temporal trends,
               and inter-variable correlations from the Copernicus Marine Ocean Dataset.
             </div>
@@ -184,7 +184,7 @@ export default function StatsDashboard({ meta, variable, date }) {
           <div className="analytics-card fade-up" style={{ marginBottom: 16 }}>
             <div className="analytics-card-title">
               <span className="dot" /> Spatial Statistics — {stats.variable} · {stats.date}
-              <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--muted)" }}>{stats.unit}</span>
+              <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--steel-500)" }}>{stats.unit}</span>
             </div>
             <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(6, 1fr)" }}>
               {kpiItems.map(({ label, val, color, noDecimals }) => (
@@ -200,17 +200,17 @@ export default function StatsDashboard({ meta, variable, date }) {
 
             {/* Histogram */}
             <div className="analytics-card-title" style={{ marginTop: 12 }}>
-              <span className="dot" style={{ background: "var(--warm)" }} /> Value Distribution
+              <span className="dot" style={{ background: "var(--steel-600)" }} /> Value Distribution
             </div>
             <ResponsiveContainer width="100%" height={90}>
               <BarChart data={histData} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
-                <XAxis dataKey="bin" tick={{ fill: "#5a87a5", fontSize: 8 }} interval={3} />
-                <YAxis tick={{ fill: "#5a87a5", fontSize: 8 }} width={30} />
+                <XAxis dataKey="bin" tick={{ fill: "var(--steel-500)", fontSize: 8, fontFamily: "var(--font-mono)" }} interval={3} />
+                <YAxis tick={{ fill: "var(--steel-500)", fontSize: 8, fontFamily: "var(--font-mono)" }} width={30} />
                 <Tooltip
-                  contentStyle={{ background: "#0d2540", border: "1px solid rgba(42,100,150,0.5)", fontSize: 10, borderRadius: 7 }}
+                  contentStyle={{ background: "var(--steel-100)", border: "2px solid var(--steel-300)", fontSize: 10, borderRadius: "var(--radius)", boxShadow: "var(--shadow-hard-sm)" }}
                   formatter={(v) => [v, "count"]}
                 />
-                <Bar dataKey="count" fill="#00c8e0" radius={[2, 2, 0, 0]} fillOpacity={0.8} />
+                <Bar dataKey="count" fill="var(--steel-700)" radius={[0, 0, 0, 0]} fillOpacity={0.85} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -220,7 +220,7 @@ export default function StatsDashboard({ meta, variable, date }) {
         {trend && (
           <div className="analytics-card fade-up" style={{ marginBottom: 16 }}>
             <div className="analytics-card-title">
-              <span className="dot" style={{ background: "#00e0a0" }} />
+              <span className="dot" style={{ background: "var(--c-doxy)" }} />
               Temporal Trend — {trend.long_name} at {trend.lat?.toFixed(2)}°N, {trend.lon?.toFixed(2)}°E
               {trend.slope_per_year != null && (
                 <span className={`trend-badge trend-${slopeSign}`} style={{ marginLeft: 10 }}>
@@ -233,21 +233,21 @@ export default function StatsDashboard({ meta, variable, date }) {
               <AreaChart data={trendData} margin={{ left: 4, right: 8, top: 4, bottom: 4 }}>
                 <defs>
                   <linearGradient id="obsGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00c8e0" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#00c8e0" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="var(--steel-600)" stopOpacity={0.25}/>
+                    <stop offset="95%" stopColor="var(--steel-600)" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(42,100,150,0.2)" />
-                <XAxis dataKey="date" tick={{ fill: "#5a87a5", fontSize: 9 }} interval={Math.floor(trendData.length / 6)} />
-                <YAxis tick={{ fill: "#5a87a5", fontSize: 9 }} width={42} tickFormatter={v => v?.toFixed(1)} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--steel-300)" />
+                <XAxis dataKey="date" tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }} interval={Math.floor(trendData.length / 6)} />
+                <YAxis tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }} width={42} tickFormatter={v => v?.toFixed(1)} />
                 <Tooltip
-                  contentStyle={{ background: "#0d2540", border: "1px solid rgba(42,100,150,0.5)", fontSize: 11, borderRadius: 8 }}
+                  contentStyle={{ background: "var(--steel-100)", border: "2px solid var(--steel-300)", fontSize: 11, borderRadius: "var(--radius)", boxShadow: "var(--shadow-hard-sm)" }}
                   formatter={(v, n) => [v?.toFixed(3), n]}
                 />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
-                <Area type="monotone" dataKey="observed" name="Daily" stroke="#00c8e0" fill="url(#obsGrad)" strokeWidth={1} dot={false} />
-                <Line type="monotone" dataKey="smooth" name={`${trendWindow}d Smooth`} stroke="#00e0a0" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="trend" name="Linear Trend" stroke="#f2a74b" strokeWidth={1.5} dot={false} strokeDasharray="6 3" />
+                <Area type="monotone" dataKey="observed" name="Daily" stroke="var(--steel-600)" fill="url(#obsGrad)" strokeWidth={1.5} dot={false} />
+                <Line type="monotone" dataKey="smooth" name={`${trendWindow}d Smooth`} stroke="var(--steel-800)" strokeWidth={2.5} dot={false} />
+                <Line type="monotone" dataKey="trend" name="Linear Trend" stroke="var(--c-chla)" strokeWidth={1.5} dot={false} strokeDasharray="6 3" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -257,36 +257,36 @@ export default function StatsDashboard({ meta, variable, date }) {
         {corr && (
           <div className="analytics-card fade-up">
             <div className="analytics-card-title">
-              <span className="dot" style={{ background: "#a78bfa" }} />
+              <span className="dot" style={{ background: "var(--c-mld)" }} />
               Correlation: {corr.var1_name} vs {corr.var2_name}
-              <span style={{ marginLeft: 10, padding: "2px 8px", background: "rgba(167,139,250,0.15)", borderRadius: 5, fontSize: 11, color: "#a78bfa" }}>
+              <span style={{ marginLeft: 10, padding: "2px 8px", background: "rgba(124,58,237,0.1)", border: "2px solid rgba(124,58,237,0.25)", borderRadius: "var(--radius)", fontSize: 11, color: "var(--c-mld)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                 r = {corr.pearson_r} &nbsp; R² = {corr.r_squared}
               </span>
-              <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--muted)" }}>
+              <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--steel-500)" }}>
                 n = {corr.n_points} points
               </span>
             </div>
             <ResponsiveContainer width="100%" height={200}>
               <ScatterChart margin={{ left: 8, right: 8, top: 4, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(42,100,150,0.2)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--steel-300)" />
                 <XAxis
                   type="number" dataKey="x" name={corr.var1_name}
                   unit={` ${corr.var1_unit}`}
-                  tick={{ fill: "#5a87a5", fontSize: 9 }}
-                  label={{ value: `${corr.var1_name} (${corr.var1_unit})`, position: "insideBottom", offset: -4, fill: "#5a87a5", fontSize: 9 }}
+                  tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                  label={{ value: `${corr.var1_name} (${corr.var1_unit})`, position: "insideBottom", offset: -4, fill: "var(--steel-500)", fontSize: 9 }}
                 />
                 <YAxis
                   type="number" dataKey="y" name={corr.var2_name}
                   unit={` ${corr.var2_unit}`}
-                  tick={{ fill: "#5a87a5", fontSize: 9 }}
+                  tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
                   width={45}
-                  label={{ value: `${corr.var2_name}`, angle: -90, position: "insideLeft", fill: "#5a87a5", fontSize: 9 }}
+                  label={{ value: `${corr.var2_name}`, angle: -90, position: "insideLeft", fill: "var(--steel-500)", fontSize: 9 }}
                 />
                 <Tooltip
-                  contentStyle={{ background: "#0d2540", border: "1px solid rgba(42,100,150,0.5)", fontSize: 11, borderRadius: 8 }}
+                  contentStyle={{ background: "var(--steel-100)", border: "2px solid var(--steel-300)", fontSize: 11, borderRadius: "var(--radius)", boxShadow: "var(--shadow-hard-sm)" }}
                   cursor={{ strokeDasharray: "3 3" }}
                 />
-                <Scatter data={corr.scatter} fill="#a78bfa" fillOpacity={0.6} r={2} />
+                <Scatter data={corr.scatter} fill="var(--c-mld)" fillOpacity={0.65} r={2} />
               </ScatterChart>
             </ResponsiveContainer>
           </div>

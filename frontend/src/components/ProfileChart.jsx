@@ -77,9 +77,9 @@ export default function ProfilePanel({
             📈 CMEMS Time Series at Point
           </div>
           <div className="glass-card" style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 7, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 10, color: "var(--steel-500)", marginBottom: 7, display: "flex", alignItems: "center", gap: 8 }}>
               <span className="cmems-badge">🛰️ CMEMS</span>
-              <span className="mono accent-text">
+              <span className="mono" style={{ color: "var(--steel-700)", fontWeight: 600 }}>
                 {timeSeriesPoint?.lat?.toFixed(3)}°N, {timeSeriesPoint?.lon?.toFixed(3)}°E
               </span>
             </div>
@@ -87,16 +87,16 @@ export default function ProfilePanel({
             {/* KPI strip */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 5, marginBottom: 10 }}>
               {[
-                { label: "Min", val: timeSeries.min_value?.toFixed(2), color: "#74b9ff" },
-                { label: "Max", val: timeSeries.max_value?.toFixed(2), color: "#ff6b6b" },
-                { label: "Mean", val: timeSeries.mean_value?.toFixed(2), color: "var(--accent)" },
-                { label: "Std", val: timeSeries.std_value?.toFixed(2), color: "var(--muted)" },
+                { label: "Min", val: timeSeries.min_value?.toFixed(2), color: "var(--c-ssh)" },
+                { label: "Max", val: timeSeries.max_value?.toFixed(2), color: "var(--c-temp)" },
+                { label: "Mean", val: timeSeries.mean_value?.toFixed(2), color: "var(--steel-800)" },
+                { label: "Std", val: timeSeries.std_value?.toFixed(2), color: "var(--steel-500)" },
               ].map(({ label, val, color }) => (
                 <div key={label} style={{
-                  background: "var(--panel-3)", borderRadius: 7, padding: "6px 7px",
-                  textAlign: "center", border: "1px solid var(--border)"
+                  background: "var(--steel-200)", borderRadius: "var(--radius)", padding: "6px 7px",
+                  textAlign: "center", border: "2px solid var(--steel-300)"
                 }}>
-                  <div style={{ fontSize: 9, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</div>
+                  <div style={{ fontSize: 9, color: "var(--steel-500)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "var(--font-display)" }}>{label}</div>
                   <div style={{ fontSize: 13, fontWeight: 700, color, fontFamily: "var(--font-display)" }}>{val}</div>
                 </div>
               ))}
@@ -117,28 +117,28 @@ export default function ProfilePanel({
               >
                 <defs>
                   <linearGradient id="tsGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={varColor(variable)} stopOpacity={0.35}/>
+                    <stop offset="5%" stopColor={varColor(variable)} stopOpacity={0.25}/>
                     <stop offset="95%" stopColor={varColor(variable)} stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,80,130,0.18)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--steel-300)" />
                 <XAxis
                   dataKey="date"
-                  tick={{ fill: "var(--muted)", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                  tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
                   tickFormatter={(d) => d?.slice(0, 7)}
                   interval={Math.floor(timeSeries.dates.length / 5)}
                 />
                 <YAxis
-                  tick={{ fill: "var(--muted)", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                  tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
                   width={38}
                   tickFormatter={(v) => v?.toFixed(1)}
                 />
                 <Tooltip
-                  contentStyle={{ background: "#0b1e30", border: "1px solid var(--border-2)", fontSize: 10.5, borderRadius: 8 }}
-                  labelStyle={{ color: "var(--text-2)" }}
+                  contentStyle={{ background: "var(--steel-100)", border: "2px solid var(--steel-300)", fontSize: 10.5, borderRadius: "var(--radius)", boxShadow: "var(--shadow-hard-sm)" }}
+                  labelStyle={{ color: "var(--steel-700)" }}
                   formatter={(v) => [v?.toFixed(3), timeSeries.unit]}
                 />
-                <ReferenceLine y={timeSeries.mean_value} stroke="#f2a74b" strokeDasharray="4 3" strokeOpacity={0.7} />
+                <ReferenceLine y={timeSeries.mean_value} stroke="var(--c-chla)" strokeDasharray="4 3" strokeOpacity={0.8} />
                 <Area
                   type="monotone"
                   dataKey="value"
@@ -150,8 +150,8 @@ export default function ProfilePanel({
                 />
               </AreaChart>
             </ResponsiveContainer>
-            <div style={{ fontSize: 9, color: "var(--muted)", textAlign: "center", marginTop: 4 }}>
-              Orange dashed = long-term mean · Click map to update
+            <div style={{ fontSize: 9, color: "var(--steel-500)", textAlign: "center", marginTop: 4, fontFamily: "var(--font-body)" }}>
+              Amber dashed = long-term mean · Click map to update
             </div>
           </div>
         </div>
@@ -228,13 +228,13 @@ export default function ProfilePanel({
           <div className="chart-wrap fade-up">
             {/* Float info header */}
             <div style={{
-              background: "var(--panel-3)", borderRadius: 8, padding: "10px 12px", marginBottom: 10,
-              border: "1px solid var(--border)", borderLeft: "3px solid var(--c-chla)"
+              background: "var(--steel-200)", borderRadius: "var(--radius)", padding: "10px 12px", marginBottom: 10,
+              border: "2px solid var(--steel-300)", borderLeft: "3px solid var(--c-chla)"
             }}>
-              <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 13, color: "var(--text)" }}>
+              <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 13, color: "var(--steel-800)", letterSpacing: "-0.01em" }}>
                 Float {profile.platform_number}
               </div>
-              <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>
+              <div style={{ fontSize: 10, color: "var(--steel-500)", marginTop: 2 }}>
                 {profile.latitude?.toFixed(3)}°N, {profile.longitude?.toFixed(3)}°E
                 &nbsp;·&nbsp;{profile.timestamp?.slice(0, 10)}
               </div>
@@ -242,8 +242,8 @@ export default function ProfilePanel({
               {profile.model_comparison && (
                 <div style={{
                   marginTop: 8,
-                  background: "rgba(116,185,255,0.06)", border: "1px solid rgba(116,185,255,0.2)",
-                  borderRadius: 6, padding: "6px 9px", fontSize: 10, color: "var(--muted)"
+                  background: "var(--steel-100)", border: "2px solid var(--steel-300)",
+                  borderRadius: "var(--radius)", padding: "6px 9px", fontSize: 10, color: "var(--steel-600)"
                 }}>
                   <span className="cmems-badge" style={{ marginRight: 6 }}>🛰️ CMEMS</span>
                   {profile.model_comparison.variable?.toUpperCase()} at surface:{" "}
@@ -281,10 +281,10 @@ export default function ProfilePanel({
                     <div key={param} style={{ marginBottom: 14 }}>
                       <div style={{
                         fontSize: 10, fontWeight: 700, color,
-                        fontFamily: "var(--font-body)", marginBottom: 5,
+                        fontFamily: "var(--font-display)", marginBottom: 5,
                         display: "flex", alignItems: "center", gap: 6
                       }}>
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, boxShadow: `0 0 6px ${color}` }} />
+                        <div style={{ width: 8, height: 8, borderRadius: 0, background: color, border: `2px solid ${color}` }} />
                         {label}
                       </div>
                       <ResponsiveContainer width="100%" height={140}>
@@ -293,21 +293,21 @@ export default function ProfilePanel({
                           layout="vertical"
                           margin={{ left: 4, right: 10, top: 4, bottom: 4 }}
                         >
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,80,130,0.18)" />
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--steel-300)" />
                           <XAxis
                             type="number"
-                            tick={{ fill: "var(--muted)", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                            tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
                             domain={["auto", "auto"]}
                           />
                           <YAxis
                             type="number"
                             dataKey="pressure"
-                            tick={{ fill: "var(--muted)", fontSize: 9, fontFamily: "var(--font-mono)" }}
-                            label={{ value: "dbar", angle: -90, position: "insideLeft", fill: "var(--muted)", fontSize: 8 }}
+                            tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                            label={{ value: "dbar", angle: -90, position: "insideLeft", fill: "var(--steel-500)", fontSize: 8 }}
                             width={38}
                           />
                           <Tooltip
-                            contentStyle={{ background: "#0b1e30", border: `1px solid ${color}33`, fontSize: 10.5, borderRadius: 8 }}
+                            contentStyle={{ background: "var(--steel-100)", border: `2px solid ${color}44`, fontSize: 10.5, borderRadius: "var(--radius)", boxShadow: "var(--shadow-hard-sm)" }}
                             formatter={(v) => [v?.toFixed(3), label]}
                             labelFormatter={(v) => `${Math.abs(v).toFixed(0)} dbar`}
                           />
@@ -341,45 +341,45 @@ export default function ProfilePanel({
                 )}
                 {!tsLoading && tsData && tsData.points?.length > 0 && (
                   <>
-                    <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 8, lineHeight: 1.5 }}>
-                      Temperature–Salinity diagram for float <strong style={{ color: "var(--accent)", fontFamily: "var(--font-mono)" }}>{tsData.platform_number}</strong>.
+                    <div style={{ fontSize: 10, color: "var(--steel-500)", marginBottom: 8, lineHeight: 1.5 }}>
+                      Temperature–Salinity diagram for float <strong style={{ color: "var(--steel-800)", fontFamily: "var(--font-mono)" }}>{tsData.platform_number}</strong>.
                       Each dot is one depth level. Water mass identification: warm salty → surface; cold fresh → AAIW.
                     </div>
                     <ResponsiveContainer width="100%" height={200}>
                       <ScatterChart margin={{ left: 4, right: 10, top: 8, bottom: 8 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,80,130,0.18)" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--steel-300)" />
                         <XAxis
                           type="number"
                           dataKey="salinity"
                           name="Salinity"
                           unit=" PSU"
-                          tick={{ fill: "var(--muted)", fontSize: 9, fontFamily: "var(--font-mono)" }}
-                          label={{ value: "Salinity (PSU)", position: "insideBottom", offset: -2, fill: "var(--muted)", fontSize: 9 }}
+                          tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                          label={{ value: "Salinity (PSU)", position: "insideBottom", offset: -2, fill: "var(--steel-500)", fontSize: 9 }}
                         />
                         <YAxis
                           type="number"
                           dataKey="temperature"
                           name="Temperature"
                           unit=" °C"
-                          tick={{ fill: "var(--muted)", fontSize: 9, fontFamily: "var(--font-mono)" }}
-                          label={{ value: "Temp (°C)", angle: -90, position: "insideLeft", fill: "var(--muted)", fontSize: 9 }}
+                          tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                          label={{ value: "Temp (°C)", angle: -90, position: "insideLeft", fill: "var(--steel-500)", fontSize: 9 }}
                           width={38}
                         />
                         <ZAxis type="number" dataKey="pressure" range={[3, 30]} name="Pressure" />
                         <Tooltip
                           cursor={{ strokeDasharray: "3 3" }}
-                          contentStyle={{ background: "#0b1e30", border: "1px solid var(--border-2)", fontSize: 10.5, borderRadius: 8 }}
+                          contentStyle={{ background: "var(--steel-100)", border: "2px solid var(--steel-300)", fontSize: 10.5, borderRadius: "var(--radius)", boxShadow: "var(--shadow-hard-sm)" }}
                           formatter={(v, name) => [v?.toFixed(3), name]}
                         />
                         <Scatter
                           data={tsData.points.filter((_, i) => i % 3 === 0)}
                           fill={ARGO_PARAM_COLORS.TEMP}
-                          fillOpacity={0.75}
+                          fillOpacity={0.7}
                           name="T-S"
                         />
                       </ScatterChart>
                     </ResponsiveContainer>
-                    <div style={{ fontSize: 9, color: "var(--muted)", textAlign: "center", marginTop: 4 }}>
+                    <div style={{ fontSize: 9, color: "var(--steel-500)", textAlign: "center", marginTop: 4 }}>
                       {tsData.n_points} depth levels · size = pressure (depth)
                     </div>
                   </>
