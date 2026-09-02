@@ -57,7 +57,7 @@ def health():
         "version": "2.0.0",
         "dataset": "Copernicus Marine — cmems_mod_glo_phy_anfc_merged-uv_PT1H-i",
         "domain": "Bay of Bengal + Arabian Sea (5°N–22°N, 68°E–95°E)",
-        "time_range": "2022-06-01 to 2026-09-09",
+        "time_range": "2022-06-01 to 2026-08-31",
     }
 
 

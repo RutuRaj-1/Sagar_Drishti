@@ -31,11 +31,11 @@ def get_timeseries(
     lat: float = Query(..., description="Latitude (nearest grid point is used)"),
     lon: float = Query(..., description="Longitude (nearest grid point is used)"),
 ):
-    """FR-API-3: full time series (2022-06-01 → 2026-09-09) for one variable
+    """FR-API-3: full time series (2022-06-01 → 2026-08-31) for one variable
     at the grid point nearest to (lat, lon).
 
     Used by the click-to-inspect feature: clicking anywhere on the 2D/3D map
-    triggers a time-series chart showing ~1562 daily values at that location.
+    triggers a time-series chart showing ~1553 daily values at that location.
     """
     result = netcdf_service.get_timeseries(variable, lat, lon)
     if result is None:

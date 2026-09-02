@@ -102,7 +102,7 @@ export default function ControlPanel({
         </div>
         <div style={{ fontSize: 9.5, color: "var(--steel-500)", lineHeight: 1.4 }}>
           {datasetMode === "cmems"
-            ? "Copernicus 1562-day gridded physics (5°N–22°N, 68°E–95°E)"
+            ? "Copernicus 1553-day physics (2022-06-01 → 2026-08-31)"
             : "4D Volumetric Model with 8 vertical depth layers & hydrodynamic flow fields"}
         </div>
       </div>

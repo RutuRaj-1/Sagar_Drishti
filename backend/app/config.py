@@ -6,11 +6,13 @@ Central configuration for the SAGAR-DRISHTI backend.
 Datasets in use (ALL REAL, no synthetic data):
   1. cmems_Copernicus_Marine_Ocean_Dataset.nc  — 5.8 GB, 2D surface/bottom fields
      14 variables (tob, sob, zos, mlotst, …), 5°N–22°N / 68°E–95°E, ~4-year daily
-  2. real_ocean_model_4d.nc                   — 2 GB, 4D depth-resolved fields
-     4 variables (thetao, so, uo, vo), 34 depth levels (1.5 m–902 m), 7 time steps
-     Source: Copernicus Marine MOI GLO12 — GLOBAL_ANALYSISFORECAST_PHY_001_024
+  2. real_ocean_model_4d.nc                   — 213 MB, 4D depth-resolved fields
+     4 variables (thetao, so, uo, vo), 30 depth levels (1.5 m–454 m), Aug 25–31 2026
+     Source: Copernicus Marine ANFC — cmems_mod_glo_phy-*_anfc_0.083deg_P1D-m
   3. DataSelection_20260831_164219_15508736/   — 183 real Argo float NC files
      91 CTD profiles + 92 trajectories, Jun 2025 – Aug 2026, Coriolis GDAC
+  4. real_glider_tracks.json                  — 4 RU29 Slocum Glider missions
+     24,611 CTD obs to 935m depth, IOOS ERDDAP, timestamps re-aligned Aug 2026
 """
 import os
 
@@ -24,9 +26,10 @@ NC_PATH = os.path.join(DATA_DIR, "cmems_Copernicus_Marine_Ocean_Dataset.nc")
 # 91 argo-profiles-*.nc + 92 argo-trajectory-*.nc covering Jun 2025 – Aug 2026
 ARGO_NC_DIR = os.path.join(DATA_DIR, "DataSelection_20260831_164219_15508736")
 
-# ── Real 4D Volumetric NetCDF — CMEMS MOI GLO12 (thetao, so, uo, vo) ─────────
-# Downloaded via copernicusmarine CLI: GLOBAL_ANALYSISFORECAST_PHY_001_024
-# 4 variables × 7 days × 34 depth levels × 205 lat × 325 lon  (~242 MB)
+# ── Real 4D Volumetric NetCDF — CMEMS ANFC (thetao, so, uo, vo) ──────────────
+# Downloaded via copernicusmarine CLI (August 25–31, 2026)
+# Products: cmems_mod_glo_phy-thetao/so/cur_anfc_0.083deg_P1D-m
+# 4 variables × 7 days × 30 depth levels × 205 lat × 325 lon  (213 MB)
 REAL_4D_NC_PATH = os.path.join(DATA_DIR, "real_ocean_model_4d.nc")
 
 # ── Real Ocean Glider Missions — IOOS ERDDAP / Rutgers RU29 Slocum Glider ─────
@@ -156,4 +159,4 @@ ARGO_PARAM_META = {
 # ── Performance settings ───────────────────────────────────────────────────────
 CACHE_ENABLED = True
 DEFAULT_DOWNSAMPLE = 4
-MAX_TIMESERIES_POINTS = 1562
+MAX_TIMESERIES_POINTS = 1553

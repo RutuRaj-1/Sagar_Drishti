@@ -34,8 +34,11 @@ def _load_dataset() -> xr.Dataset:
     xarray with netCDF4 engine keeps the file open as a memory map — actual
     data is read lazily from disk only when a slice is requested, so startup
     is fast even for the 5.8 GB file.
+    Clamped strictly to 2026-08-31 (downloaded observation dataset period;
+    future September forecast days excluded).
     """
     ds = xr.open_dataset(config.NC_PATH, engine="netcdf4")
+    ds = ds.sel(time=slice(None, "2026-08-31"))
     return ds
 
 

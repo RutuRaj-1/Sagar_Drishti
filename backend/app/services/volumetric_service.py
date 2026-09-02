@@ -2,18 +2,19 @@
 volumetric_service.py
 ---------------------
 Service layer for the REAL 4D Volumetric Ocean Data from Copernicus Marine Service (CMEMS).
-Source: Global Ocean Physics Analysis and Forecast — MOI GLO12 (Mercator Ocean International)
-Product: GLOBAL_ANALYSISFORECAST_PHY_001_024
+Source: Global Ocean Physics Analysis and Forecast — ANFC (Copernicus Marine)
+Products: cmems_mod_glo_phy-thetao/so/cur_anfc_0.083deg_P1D-m
 File: real_ocean_model_4d.nc  (time × depth × latitude × longitude)
+Temporal coverage: August 25–31, 2026 (7 time steps)
 
 Real CMEMS variable mapping
-  thetao  → temperature  (6.66–30.23 °C,  34 depth levels, 1.54m–902m)
-  so      → salinity     (3.94–36.86 PSU, 34 depth levels)
-  uo      → u_current    (eastward  velocity m/s, –1.50 to +0.91)
-  vo      → v_current    (northward velocity m/s, –1.55 to +1.26)
+  thetao  → temperature  (°C,   30 depth levels, 1.5m–454m)
+  so      → salinity     (PSU,  30 depth levels)
+  uo      → u_current    (eastward  velocity m/s)
+  vo      → v_current    (northward velocity m/s)
 
 Enables:
-  - FR-2.3: True vertical depth slider across 34 real depth levels (1.5m–902m)
+  - FR-2.3: True vertical depth slider across 30 real depth levels (1.5m–454m)
   - FR-2.5: Current vector arrow field from real CMEMS uo/vo fields
   - FR-2.6: 3D Volumetric Marching Cubes isosurface from real 4D grid
   - FR-3.3: Dual-line model-vs-observation depth comparison
