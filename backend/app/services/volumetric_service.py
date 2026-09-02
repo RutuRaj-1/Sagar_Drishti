@@ -165,6 +165,20 @@ def get_volumetric_metadata() -> Dict[str, Any]:
     }
 
 
+def _fill_vertical_bottom(vals_3d: np.ndarray) -> np.ndarray:
+    """
+    Forward-fill along depth axis (axis 0).
+    If an ocean cell is shallower than the requested depth (e.g. continental shelf
+    between India and Sri Lanka), it carries the sea-bottom measurement down so the
+    ocean field remains continuous and consistent across all depths.
+    True land (e.g. Indian subcontinent, Sri Lanka landmass) remains NaN at all depths.
+    """
+    filled = vals_3d.copy()
+    for d in range(1, filled.shape[0]):
+        filled[d] = np.where(np.isnan(filled[d]), filled[d - 1], filled[d])
+    return filled
+
+
 def get_depth_slice(
     variable: str,
     date: Optional[str] = None,
@@ -174,6 +188,7 @@ def get_depth_slice(
     """
     Return a 2D horizontal lat-lon slice of a real CMEMS variable
     at the nearest available depth level and date.
+    Maintains continuous ocean coverage across shallow continental shelves.
 
     Parameters
     ----------
@@ -191,35 +206,42 @@ def get_depth_slice(
 
     try:
         if date:
-            sub = ds[nc_var].sel(time=date, depth=depth, method="nearest")
+            time_sub = ds[nc_var].sel(time=date, method="nearest")
         else:
-            # Default to latest time step
-            sub = ds[nc_var].isel(time=-1).sel(depth=depth, method="nearest")
+            time_sub = ds[nc_var].isel(time=-1)
     except Exception:
         return None
 
     step = max(1, int(downsample))
-    sub  = sub.isel(**{lat_key: slice(None, None, step), lon_key: slice(None, None, step)})
+    time_sub = time_sub.isel(**{lat_key: slice(None, None, step), lon_key: slice(None, None, step)})
 
-    raw    = sub.values.astype(np.float32)
-    valid  = raw[~np.isnan(raw)]
+    # Forward-fill along depth axis so shallow ocean columns (like Palk Strait)
+    # maintain their sea-bottom ocean values at deep slices without breaking/tearing
+    vals_3d = time_sub.values.astype(np.float32)
+    vals_3d = _fill_vertical_bottom(vals_3d)
+
+    depth_idx = int(np.argmin(np.abs(ds.depth.values - float(depth))))
+    actual_depth = float(ds.depth.values[depth_idx])
+    raw = vals_3d[depth_idx]
+
+    valid = raw[~np.isnan(raw)]
     raw_list = [[None if np.isnan(v) else round(float(v), 3) for v in row] for row in raw]
 
     return {
         "variable":   variable,
         "nc_name":    nc_var,
-        "date":       str(sub.time.values)[:10],
-        "depth":      round(float(sub.depth.values), 2),
+        "date":       str(time_sub.time.values)[:10],
+        "depth":      round(actual_depth, 2),
         "unit":       VOLUMETRIC_VARS.get(variable, {}).get("units", ""),
         "long_name":  VOLUMETRIC_VARS.get(variable, {}).get("long_name", variable),
-        "lat":        [round(float(v), 4) for v in sub[lat_key].values],
-        "lon":        [round(float(v), 4) for v in sub[lon_key].values],
+        "lat":        [round(float(v), 4) for v in time_sub[lat_key].values],
+        "lon":        [round(float(v), 4) for v in time_sub[lon_key].values],
         "values":     raw_list,
         "min_value":  round(float(valid.min()),  3) if len(valid) > 0 else None,
         "max_value":  round(float(valid.max()),  3) if len(valid) > 0 else None,
         "mean_value": round(float(valid.mean()), 3) if len(valid) > 0 else None,
         "downsample": step,
-        "source":     "CMEMS MOI GLO12",
+        "source":     "Copernicus Marine ANFC — 4D Physics",
     }
 
 
@@ -242,22 +264,27 @@ def get_current_vectors(
     lat_key, lon_key = _coord_keys(ds)
 
     try:
-        sel_kwargs = dict(depth=depth, method="nearest")
         if date:
-            u_slice = ds["uo"].sel(time=date, **sel_kwargs)
-            v_slice = ds["vo"].sel(time=date, **sel_kwargs)
+            u_time = ds["uo"].sel(time=date, method="nearest")
+            v_time = ds["vo"].sel(time=date, method="nearest")
         else:
-            u_slice = ds["uo"].isel(time=-1).sel(**sel_kwargs)
-            v_slice = ds["vo"].isel(time=-1).sel(**sel_kwargs)
+            u_time = ds["uo"].isel(time=-1)
+            v_time = ds["vo"].isel(time=-1)
     except Exception:
         return None
 
     step  = max(1, int(downsample))
-    u_sub = u_slice.isel(**{lat_key: slice(None, None, step), lon_key: slice(None, None, step)})
-    v_sub = v_slice.isel(**{lat_key: slice(None, None, step), lon_key: slice(None, None, step)})
+    u_sub = u_time.isel(**{lat_key: slice(None, None, step), lon_key: slice(None, None, step)})
+    v_sub = v_time.isel(**{lat_key: slice(None, None, step), lon_key: slice(None, None, step)})
 
-    u_vals = u_sub.values.astype(np.float32)
-    v_vals = v_sub.values.astype(np.float32)
+    u_3d = _fill_vertical_bottom(u_sub.values.astype(np.float32))
+    v_3d = _fill_vertical_bottom(v_sub.values.astype(np.float32))
+
+    depth_idx = int(np.argmin(np.abs(ds.depth.values - float(depth))))
+    actual_depth = float(ds.depth.values[depth_idx])
+    u_vals = u_3d[depth_idx]
+    v_vals = v_3d[depth_idx]
+
     lats   = [float(v) for v in u_sub[lat_key].values]
     lons   = [float(v) for v in u_sub[lon_key].values]
     speed  = np.sqrt(u_vals ** 2 + v_vals ** 2)
@@ -284,15 +311,15 @@ def get_current_vectors(
 
     valid_speed = speed[~np.isnan(speed)]
     return {
-        "date":       str(u_slice.time.values)[:10],
-        "depth":      round(float(u_slice.depth.values), 2),
+        "date":       str(u_time.time.values)[:10],
+        "depth":      round(actual_depth, 2),
         "lat_count":  len(lats),
         "lon_count":  len(lons),
         "n_vectors":  len(points),
         "min_speed":  round(float(valid_speed.min()),  4) if len(valid_speed) > 0 else None,
         "max_speed":  round(float(valid_speed.max()),  4) if len(valid_speed) > 0 else None,
         "mean_speed": round(float(valid_speed.mean()), 4) if len(valid_speed) > 0 else None,
-        "source":     "CMEMS uo/vo — MOI GLO12",
+        "source":     "Copernicus Marine ANFC uo/vo — 4D Physics",
         "points":     points,
     }
 
@@ -304,7 +331,7 @@ def get_model_depth_profile(
     date: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
-    Extract a real vertical depth profile (all 34 CMEMS depth levels)
+    Extract a real vertical depth profile (all CMEMS depth levels)
     at the nearest grid point to (lat, lon) for the given date.
 
     Used for model-vs-Argo dual-line comparison chart in the frontend.
@@ -343,11 +370,13 @@ def get_model_depth_profile(
         "long_name": VOLUMETRIC_VARS.get(variable, {}).get("long_name", variable),
         "n_levels":  len(depths),
         "n_valid":   len(valid),
-        "source":    "CMEMS MOI GLO12 — real 4D profile",
+        "min_value": round(float(min(valid)), 3) if valid else None,
+        "max_value": round(float(max(valid)), 3) if valid else None,
+        "source":    "Copernicus Marine ANFC — 4D Physics",
     }
 
 
-def get_volume_for_isosurface(
+def get_isosurface_grid(
     variable: str = "temperature",
     date: Optional[str] = None,
     depth_range: Optional[tuple] = None,
@@ -395,7 +424,7 @@ def get_volume_for_isosurface(
            lon_key: slice(None, None, SPATIAL_STEP)}
     )
 
-    raw_3d = da.values.astype(np.float32)   # shape: (depth, lat, lon)
+    raw_3d = _fill_vertical_bottom(da.values.astype(np.float32))   # shape: (depth, lat, lon)
     valid  = raw_3d[~np.isnan(raw_3d)]
 
     return {

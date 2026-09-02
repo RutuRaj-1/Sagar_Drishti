@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { api } from "./api.js";
-import { paletteForVariable, paletteGradientCss, varColor } from "./utils/colormap.js";
+import { paletteForVariable, paletteGradientCss, varColor, colorForValue, PALETTES } from "./utils/colormap.js";
 
 import ControlPanel from "./components/ControlPanel.jsx";
 import OceanMap from "./components/OceanMap.jsx";
@@ -115,12 +115,14 @@ export default function App() {
     setDatasetMode(mode);
     setDateIndex(0);
     if (mode === "volumetric") {
-      setVariable("temperature");
-      setPalette("thermal");
+      const newVar = "temperature";
+      setVariable(newVar);
+      setPalette(paletteForVariable(newVar));
       setColorRange(null);
     } else {
-      setVariable("tob");
-      setPalette("thermal");
+      const newVar = "tob";
+      setVariable(newVar);
+      setPalette(paletteForVariable(newVar));
       setColorRange(null);
     }
   };

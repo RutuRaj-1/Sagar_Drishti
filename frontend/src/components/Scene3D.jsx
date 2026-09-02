@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { colorForValue, paletteForVariable, ARGO_PARAM_COLORS } from "../utils/colormap.js";
+import { colorForValue, paletteForVariable, PALETTES, ARGO_PARAM_COLORS } from "../utils/colormap.js";
 import { extractIsosurface } from "../utils/marchingCubes.js";
 
 /**
@@ -249,7 +249,8 @@ export default function Scene3D({
     const exag = verticalExaggeration ?? 1.5;
 
     const WORLD_W = 300, WORLD_D = 200;
-    const TERRAIN_HEIGHT = 40;
+    const TERRAIN_BASE_Y = 0;
+    const TERRAIN_AMPLITUDE = 8;
 
     const geometry = new THREE.PlaneGeometry(WORLD_W, WORLD_D, nLon - 1, nLat - 1);
     geometry.rotateX(-Math.PI / 2);
@@ -264,9 +265,12 @@ export default function Scene3D({
 
         if (val !== null && val !== undefined && !isNaN(val)) {
           const norm = Math.max(0, Math.min(1, (val - lo) / (hi - lo || 1)));
-          positions.setY(vIdx, norm * TERRAIN_HEIGHT * exag);
+          // Smooth physical relief: gentle undulation without steep walls
+          const y = TERRAIN_BASE_Y + (norm - 0.5) * TERRAIN_AMPLITUDE * exag;
+          positions.setY(vIdx, y);
         } else {
-          positions.setY(vIdx, 0);
+          // Land sits flush at sea level baseline
+          positions.setY(vIdx, TERRAIN_BASE_Y);
         }
 
         const [r, g, b] = colorForValue(val, lo, hi, pal, colorScale || "linear");
@@ -300,7 +304,7 @@ export default function Scene3D({
     const wire = new THREE.LineSegments(wireGeo, wireMat);
     dataGroup.add(wire);
 
-    stateRef.current.meshParams = { lo, hi, exag, TERRAIN_HEIGHT, WORLD_W, WORLD_D };
+    stateRef.current.meshParams = { lo, hi, exag, TERRAIN_BASE_Y, TERRAIN_AMPLITUDE, WORLD_W, WORLD_D };
   }, [surface, palette, colorMin, colorMax, colorScale, verticalExaggeration, layerOpacity]);
 
   // ── Rebuild 3D Marching Cubes Isosurface ──────────────────────────────────
@@ -319,9 +323,17 @@ export default function Scene3D({
     try {
       const isoGeo = extractIsosurface(isosurfaceGrid, isovalue, { width: 300, depth: 200, height: 60 });
       if (isoGeo) {
+        // Derive isosurface color from the active variable's palette at 75% (warm-end highlight)
+        const pal = palette || paletteForVariable(surface?.variable || "temperature");
+        const stops = PALETTES[pal] || PALETTES.thermal;
+        const idx75 = Math.min(stops.length - 1, Math.floor(stops.length * 0.75));
+        const [ir, ig, ib] = stops[idx75];
+        const isoHex = (ir << 16) | (ig << 8) | ib;
+        const emissiveHex = ((Math.floor(ir * 0.3)) << 16) | ((Math.floor(ig * 0.3)) << 8) | Math.floor(ib * 0.3);
+
         const isoMat = new THREE.MeshPhongMaterial({
-          color: new THREE.Color(0xff7675),
-          emissive: new THREE.Color(0xff4757).multiplyScalar(0.25),
+          color: new THREE.Color(isoHex),
+          emissive: new THREE.Color(emissiveHex),
           transparent: true,
           opacity: 0.82,
           shininess: 70,
@@ -340,7 +352,7 @@ export default function Scene3D({
     } catch (err) {
       console.error("Isosurface extraction error:", err);
     }
-  }, [showIsosurface, isosurfaceGrid, isovalue, layerOpacity]);
+  }, [showIsosurface, isosurfaceGrid, isovalue, layerOpacity, palette, surface]);
 
   // ── Rebuild 3D Current Velocity Vectors (Cones/Arrows) ────────────────────
   useEffect(() => {
@@ -359,6 +371,7 @@ export default function Scene3D({
     const latMin = lat[0], latMax = lat[lat.length - 1];
     const lonMin = lon[0], lonMax = lon[lon.length - 1];
     const WORLD_W = 300, WORLD_D = 200;
+    const maxSpeed = currentVectors.max_speed || 1.0;
 
     const points = currentVectors.points;
     const coneGeo = new THREE.ConeGeometry(1.2, 4.5, 8);
@@ -369,16 +382,18 @@ export default function Scene3D({
       const z = -((pt.lat - latMin) / (latMax - latMin) - 0.5) * WORLD_D;
       const y = 8; // Slightly elevated above ground plane
 
-      const spdNorm = Math.min(1.0, pt.speed / (currentVectors.max_speed || 1.0));
-      const color = new THREE.Color().setHSL(0.55 - spdNorm * 0.35, 1.0, 0.55);
+      // Use the same 'speed' palette as the 2D map arrows — full visual consistency
+      const [sr, sg, sb] = colorForValue(pt.speed, 0, maxSpeed, "speed", "linear");
+      const coneColor = new THREE.Color(sr / 255, sg / 255, sb / 255);
 
-      const coneMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 });
+      const coneMat = new THREE.MeshBasicMaterial({ color: coneColor, transparent: true, opacity: 0.88 });
       const cone = new THREE.Mesh(coneGeo, coneMat);
 
       cone.position.set(x, y, z);
       // Math angle_deg (0=East (+X), 90=North (-Z))
       const rad = (pt.angle_deg * Math.PI) / 180;
       cone.rotation.y = rad;
+      const spdNorm = Math.min(1.0, pt.speed / maxSpeed);
       const scale = 0.8 + spdNorm * 1.4;
       cone.scale.set(scale, scale, scale);
 
@@ -412,7 +427,8 @@ export default function Scene3D({
     const lo = colorMin ?? min_value;
     const hi = colorMax ?? max_value;
     const exag = verticalExaggeration ?? 1.5;
-    const TERRAIN_HEIGHT = 40;
+    const TERRAIN_BASE_Y = 0;
+    const TERRAIN_AMPLITUDE = 8;
 
     allInsts.forEach((inst) => {
       const x = ((inst.longitude - lonMin) / (lonMax - lonMin) - 0.5) * WORLD_W;
@@ -423,8 +439,8 @@ export default function Scene3D({
       const val = values?.[latIdx]?.[lonIdx];
       const norm = (val !== null && val !== undefined && !isNaN(val))
         ? Math.max(0, Math.min(1, (val - lo) / (hi - lo || 1)))
-        : 0;
-      const ySurface = norm * TERRAIN_HEIGHT * exag;
+        : 0.5;
+      const ySurface = TERRAIN_BASE_Y + (norm - 0.5) * TERRAIN_AMPLITUDE * exag;
 
       const isSelected = inst.instrument_id === selectedInstrumentId;
       const isGlider = inst.kind === "glider";
