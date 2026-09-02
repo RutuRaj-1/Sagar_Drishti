@@ -212,7 +212,7 @@ export default function OceanMap({
     overlayRef.current = overlay;
   }, [surface, palette, colorMin, colorMax, colorScale, layerOpacity]);
 
-  // ── Render 2D Current Vector Arrows Layer ────────────────────────────────
+  // ── Render 2D Current Vector Arrows Layer (with proper arrowheads) ────────
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
@@ -228,41 +228,79 @@ export default function OceanMap({
     const points = currentVectors.points;
     const maxSpd = currentVectors.max_speed || 1.0;
 
+    // 5-stop speed gradient: slow(blue) → cyan → lime → amber → fast(red)
+    function speedColor(t) {
+      const stops = [
+        [0,    [30,  144, 255]],
+        [0.25, [0,   212, 240]],
+        [0.5,  [50,  230, 120]],
+        [0.75, [253, 203, 110]],
+        [1.0,  [255,  70,  70]],
+      ];
+      for (let i = 0; i < stops.length - 1; i++) {
+        const [t0, c0] = stops[i];
+        const [t1, c1] = stops[i + 1];
+        if (t <= t1) {
+          const f = (t - t0) / (t1 - t0);
+          return `rgb(${Math.round(c0[0] + f*(c1[0]-c0[0]))},${Math.round(c0[1] + f*(c1[1]-c0[1]))},${Math.round(c0[2] + f*(c1[2]-c0[2]))})`;
+        }
+      }
+      return "rgb(255,70,70)";
+    }
+
     points.forEach((pt) => {
-      const rad = (pt.angle_deg * Math.PI) / 180;
       const spdNorm = Math.min(1.0, pt.speed / maxSpd);
-      
-      // Vector arrow length
-      const len = 0.22 + spdNorm * 0.45;
-      const dLat = len * Math.sin(rad);
-      const dLon = len * Math.cos(rad);
+      if (spdNorm < 0.05) return; // skip near-zero currents
+
+      const color = speedColor(spdNorm);
+      const opacity = 0.5 + spdNorm * 0.45;
+
+      // angle_deg: direction the current flows TOWARD (0=East, 90=North)
+      const angleRad = (pt.angle_deg * Math.PI) / 180;
+      const baseLen = 0.16 + spdNorm * 0.38;
+      const dLon = baseLen * Math.cos(angleRad);
+      const dLat = baseLen * Math.sin(angleRad);
 
       const start = [pt.lat, pt.lon];
-      const end = [pt.lat + dLat, pt.lon + dLon];
+      const end   = [pt.lat + dLat, pt.lon + dLon];
 
-      // Arrow color: cyan for moderate, yellow/amber for high speed
-      const color = spdNorm > 0.6 ? "#fdcb6e" : "#00d4f0";
-
-      // Draw vector shaft
-      const line = L.polyline([start, end], {
+      // Shaft
+      const shaft = L.polyline([start, end], {
         color,
-        weight: 1.5 + spdNorm * 1.5,
-        opacity: 0.85,
+        weight: 1.2 + spdNorm * 2.0,
+        opacity,
+        lineCap: "round",
         interactive: false,
       });
-      layerGroup.addLayer(line);
+      layerGroup.addLayer(shaft);
 
-      // Arrow tip dot
-      const tip = L.circleMarker(end, {
-        radius: 2 + spdNorm * 2,
-        fillColor: color,
-        color: "#ffffff",
-        weight: 0.5,
-        opacity: 1,
-        fillOpacity: 1,
-        interactive: false,
+      // Arrowhead: rotated CSS triangle via divIcon
+      const headSize = 5 + spdNorm * 7;
+      const halfW = Math.round(headSize * 0.55);
+      // CSS border-triangle points upward; rotate so "up" aligns with current direction
+      // angle_deg measured from East CCW; CSS rotate(0deg) = pointing up = North = 90° in oceanographic
+      const rotateDeg = -(pt.angle_deg - 90);
+      const arrowIcon = L.divIcon({
+        html: `<div style="
+          width:0;height:0;
+          border-left:${halfW}px solid transparent;
+          border-right:${halfW}px solid transparent;
+          border-bottom:${Math.round(headSize)}px solid ${color};
+          opacity:${opacity.toFixed(2)};
+          transform:rotate(${rotateDeg}deg);
+          transform-origin:50% 100%;
+        "></div>`,
+        className: "",
+        iconSize: [halfW * 2, headSize],
+        iconAnchor: [halfW, headSize / 2],
       });
-      layerGroup.addLayer(tip);
+
+      const arrowMarker = L.marker(end, {
+        icon: arrowIcon,
+        interactive: false,
+        zIndexOffset: -100,
+      });
+      layerGroup.addLayer(arrowMarker);
     });
 
     layerGroup.addTo(map);

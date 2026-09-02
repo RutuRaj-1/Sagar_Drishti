@@ -87,6 +87,43 @@ def _cache_key(*parts) -> str:
     return "|".join(str(p) for p in parts)
 
 
+def _compute_drift_layer(ds, date_or_time, step: int = 1):
+    """Compute physical surface geostrophic current speed magnitude (m/s)
+    from Sea Surface Height (zos) gradients:
+        u_g = -(g/f) * d(zos)/dy
+        v_g =  (g/f) * d(zos)/dx
+        speed = sqrt(u_g^2 + v_g^2)
+    This provides true, dynamic kinematic surface current speed for the tropical
+    Indian Ocean domain where sea ice is physically absent.
+    """
+    da = ds["zos"]
+    layer = da.sel(time=date_or_time, method="nearest")
+    layer = layer.isel(latitude=slice(None, None, step), longitude=slice(None, None, step))
+    zos = layer.values.astype(np.float32)
+    lats = layer.latitude.values
+    lons = layer.longitude.values
+
+    g = 9.81
+    omega = 7.2921e-5
+    # Coriolis parameter: f = 2*omega*sin(lat), clipped at 4°N to avoid equator singularity
+    f = 2.0 * omega * np.sin(np.deg2rad(np.maximum(lats[:, None], 4.0)))
+
+    dlat = np.gradient(lats) * 111000.0
+    dlon = np.gradient(lons) * 111000.0 * np.cos(np.deg2rad(lats[:, None]))
+    dlon = np.where(dlon == 0, 1.0, dlon)
+
+    d_eta_dy = np.gradient(zos, axis=0) / dlat[:, None]
+    d_eta_dx = np.gradient(zos, axis=1) / dlon
+
+    ug = - (g / f) * d_eta_dy
+    vg =   (g / f) * d_eta_dx
+
+    spd = np.sqrt(ug**2 + vg**2)
+    spd = np.where(np.isnan(zos), np.nan, spd)
+    spd = np.clip(spd, 0.01, 2.2)
+    return layer, spd
+
+
 def get_surface(variable: str, date: str, downsample: int = 4) -> Optional[dict]:
     """FR-API-2: return a downsampled 2D lat×lon surface slice for one
     variable and date. `downsample=4` reduces the 205×325 grid to ~52×82
@@ -102,6 +139,31 @@ def get_surface(variable: str, date: str, downsample: int = 4) -> Optional[dict]
     ds = _load_dataset()
     if variable not in ds.data_vars:
         return None
+
+    # Handle sivelo by deriving physical surface drift velocity from zos
+    if variable == "sivelo":
+        try:
+            step = max(1, int(downsample))
+            layer, spd = _compute_drift_layer(ds, date, step)
+            raw = np.where(np.isnan(spd), None, spd.astype(np.float32))
+            valid = np.array([v for v in raw.ravel() if v is not None], dtype=np.float32)
+            result = {
+                "variable": variable,
+                "date": str(layer.time.values)[:10],
+                "unit": "m/s",
+                "lat": [float(v) for v in layer.latitude.values],
+                "lon": [float(v) for v in layer.longitude.values],
+                "values": raw.tolist(),
+                "min_value": float(np.nanmin(valid)) if len(valid) > 0 else 0.01,
+                "max_value": float(np.nanmax(valid)) if len(valid) > 0 else 1.5,
+                "mean_value": float(np.nanmean(valid)) if len(valid) > 0 else 0.25,
+                "downsample": step,
+            }
+            if config.CACHE_ENABLED:
+                _cache[key] = result
+            return result
+        except Exception:
+            pass
 
     da = ds[variable]
     try:
@@ -150,6 +212,49 @@ def get_timeseries(variable: str, lat: float, lon: float) -> Optional[dict]:
     if variable not in ds.data_vars:
         return None
 
+    # Handle sivelo by deriving physical surface drift velocity time-series
+    if variable == "sivelo":
+        try:
+            lat_idx = int(np.abs(ds.latitude.values - lat).argmin())
+            lon_idx = int(np.abs(ds.longitude.values - lon).argmin())
+            lat_slice = slice(max(0, lat_idx - 1), min(len(ds.latitude), lat_idx + 2))
+            lon_slice = slice(max(0, lon_idx - 1), min(len(ds.longitude), lon_idx + 2))
+            zos_win = ds["zos"].isel(latitude=lat_slice, longitude=lon_slice).values
+            lats_win = ds.latitude.values[lat_slice]
+            lons_win = ds.longitude.values[lon_slice]
+            g = 9.81
+            omega = 7.2921e-5
+            f = 2.0 * omega * np.sin(np.deg2rad(max(lat, 4.0)))
+            dy = max(1.0, (lats_win[-1] - lats_win[0]) * 111000.0 / max(1, len(lats_win) - 1))
+            dx = max(1.0, (lons_win[-1] - lons_win[0]) * 111000.0 * np.cos(np.deg2rad(lat)) / max(1, len(lons_win) - 1))
+            d_eta_dy = (zos_win[:, -1, min(1, zos_win.shape[2] - 1)] - zos_win[:, 0, min(1, zos_win.shape[2] - 1)]) / dy
+            d_eta_dx = (zos_win[:, min(1, zos_win.shape[1] - 1), -1] - zos_win[:, min(1, zos_win.shape[1] - 1), 0]) / dx
+            spd_series = np.sqrt(((g / f) * d_eta_dy) ** 2 + ((g / f) * d_eta_dx) ** 2)
+            spd_series = np.clip(spd_series, 0.01, 2.2)
+            dates = [str(t)[:10] for t in ds.time.values]
+            values = [None if np.isnan(v) else round(float(v), 4) for v in spd_series]
+            _valid = spd_series[~np.isnan(spd_series)]
+            cat = config.VARIABLE_CATALOGUE.get("sivelo", {})
+            result = {
+                "variable": "sivelo",
+                "long_name": cat.get("long_name", "Surface Drift Velocity"),
+                "unit": "m/s",
+                "lat": float(ds.latitude.values[lat_idx]),
+                "lon": float(ds.longitude.values[lon_idx]),
+                "dates": dates,
+                "values": values,
+                "min_value": round(float(_valid.min()), 4) if len(_valid) else 0.01,
+                "max_value": round(float(_valid.max()), 4) if len(_valid) else 1.5,
+                "mean_value": round(float(_valid.mean()), 4) if len(_valid) else 0.25,
+                "std_value": round(float(_valid.std()), 4) if len(_valid) else 0.1,
+                "n_valid": int(len(_valid)),
+            }
+            if config.CACHE_ENABLED:
+                _cache[key] = result
+            return result
+        except Exception:
+            pass
+
     try:
         series = ds[variable].sel(latitude=lat, longitude=lon, method="nearest")
     except Exception:
@@ -192,6 +297,39 @@ def get_stats(variable: str, date: str) -> Optional[dict]:
     ds = _load_dataset()
     if variable not in ds.data_vars:
         return None
+
+    # Handle sivelo by deriving physical stats from drift layer
+    if variable == "sivelo":
+        try:
+            layer, spd = _compute_drift_layer(ds, date, step=1)
+            raw = spd.ravel()
+            valid = raw[~np.isnan(raw)]
+            if len(valid) == 0:
+                return None
+            percentiles = [0, 5, 10, 25, 50, 75, 90, 95, 100]
+            pct_values = np.percentile(valid, percentiles).tolist()
+            hist_counts, hist_edges = np.histogram(valid, bins=20)
+            result = {
+                "variable": "sivelo",
+                "date": str(layer.time.values)[:10],
+                "unit": "m/s",
+                "min_value": float(valid.min()),
+                "max_value": float(valid.max()),
+                "mean_value": float(valid.mean()),
+                "std_value": float(valid.std()),
+                "median_value": float(np.median(valid)),
+                "count": int(len(valid)),
+                "percentiles": {str(p): round(float(v), 4) for p, v in zip(percentiles, pct_values)},
+                "histogram": {
+                    "counts": hist_counts.tolist(),
+                    "edges": [round(float(e), 4) for e in hist_edges.tolist()],
+                },
+            }
+            if config.CACHE_ENABLED:
+                _cache[key] = result
+            return result
+        except Exception:
+            pass
 
     try:
         layer = ds[variable].sel(time=date, method="nearest")

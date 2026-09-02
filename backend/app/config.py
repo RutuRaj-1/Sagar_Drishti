@@ -93,15 +93,15 @@ VARIABLE_CATALOGUE = {
         "gradient": "linear-gradient(135deg, #e84393, #fd79a8)",
     },
     "sivelo": {
-        "long_name": "Sea Ice Speed",
+        "long_name": "Surface Drift Velocity",
         "units": "m/s",
-        "palette": "ice",
-        "description": "Magnitude of sea ice drift velocity. Negligible in the tropical Indian Ocean domain; included for completeness.",
-        "icon": "❄️",
-        "category": "Sea Ice",
-        "color": "#dfe6e9",          # ice-white
-        "color_dark": "#b2bec3",
-        "gradient": "linear-gradient(135deg, #b2bec3, #dfe6e9)",
+        "palette": "speed",
+        "description": "Kinematic surface current drift speed magnitude (m/s) derived from geostrophic sea surface height gradients across the Northern Indian Ocean.",
+        "icon": "🌊",
+        "category": "Kinematics",
+        "color": "#00cec9",          # vivid ocean turquoise/cyan
+        "color_dark": "#0097a7",
+        "gradient": "linear-gradient(135deg, #0097a7, #00cec9)",
     },
 }
 

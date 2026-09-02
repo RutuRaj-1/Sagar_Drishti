@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   LineChart, Line, AreaChart, Area,
   ScatterChart, Scatter,
@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { ARGO_PARAM_COLORS, varColor } from "../utils/colormap.js";
 import { api } from "../api.js";
+import VariableExplanationCard from "./VariableExplanationCard.jsx";
 
 /**
  * ProfilePanel — Depth Profile & Model Co-Location Chart
@@ -214,12 +215,19 @@ export default function ProfilePanel({
   variable,
   hideInstrumentList = false,
   hideHeaderCard = false,
+  colorRange,
+  surface,
 }) {
   const [profileTab, setProfileTab] = useState("depth"); // "depth" | "ts"
   const [tsData, setTsData] = useState(null);
   const [tsLoading, setTsLoading] = useState(false);
   const [modelProfile, setModelProfile] = useState(null);
   const [modelLoading, setModelLoading] = useState(false);
+
+  // In-Situ Platforms Directory State (Collapsible Directory Flow)
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [directorySearch, setDirectorySearch] = useState("");
+  const [directoryFilter, setDirectoryFilter] = useState("all"); // "all" | "argo" | "glider" | "bgc"
 
   // Fetch T-S diagram when a float is selected
   useEffect(() => {
@@ -298,29 +306,52 @@ export default function ProfilePanel({
     return { bias, mae, rmse, n: valid.length };
   }
 
-  const allList = [
+  const allList = useMemo(() => [
     ...instruments.map(i => ({ ...i, kind: "argo" })),
     ...gliders.map(g => ({ ...g, kind: "glider" })),
-  ];
+  ], [instruments, gliders]);
+
+  const bgcFloatsCount = useMemo(() => instruments.filter(i => i.bgc_params?.length > 0).length, [instruments]);
+
+  const filteredDirectoryList = useMemo(() => {
+    return allList.filter((inst) => {
+      if (directoryFilter === "argo" && inst.kind !== "argo") return false;
+      if (directoryFilter === "glider" && inst.kind !== "glider") return false;
+      if (directoryFilter === "bgc" && (!inst.bgc_params || inst.bgc_params.length === 0)) return false;
+      if (directorySearch.trim()) {
+        const q = directorySearch.toLowerCase();
+        const idStr = String(inst.platform_number || inst.instrument_id || "").toLowerCase();
+        const latStr = String(inst.latitude || "");
+        const lonStr = String(inst.longitude || "");
+        return idStr.includes(q) || latStr.includes(q) || lonStr.includes(q);
+      }
+      return true;
+    });
+  }, [allList, directoryFilter, directorySearch]);
+
+  const isTempVar = variable === "tob" || variable === "temperature";
 
   return (
     <div className="panel" style={{ background: "transparent", border: "none", padding: 0 }}>
 
-      {/* ── Optional CMEMS Time Series (from map click) ───────── */}
-      {timeSeries && (
-        <div className="panel-section fade-up" style={{ marginBottom: 16 }}>
-          <div className="section-header">
-            📈 CMEMS Time Series at Point
+      {/* ── 1. CMEMS Time Series at Point (ONLY visible when variable is Temperature) ───────── */}
+      {timeSeries && isTempVar && (
+        <div className="panel-section fade-up" style={{ marginBottom: 14 }}>
+          <div className="section-header" style={{ color: "#0f172a", fontSize: 12, fontWeight: 800 }}>
+            📈 CMEMS Point Time Series (Temperature)
           </div>
-          <div className="glass-card" style={{ background: "#ffffff", border: "1.5px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
-              <span className="cmems-badge">🛰️ CMEMS</span>
-              <span className="mono" style={{ color: "#0f172a", fontWeight: 700 }}>
-                {timeSeriesPoint?.lat?.toFixed(3)}°N, {timeSeriesPoint?.lon?.toFixed(3)}°E
-              </span>
+          <div className="glass-card" style={{ background: "#ffffff", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="cmems-badge">🛰️ CMEMS</span>
+                <span className="mono" style={{ color: "#0f172a", fontWeight: 700 }}>
+                  {timeSeriesPoint?.lat?.toFixed(3)}°N, {timeSeriesPoint?.lon?.toFixed(3)}°E
+                </span>
+              </div>
+              <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>2022–2026 Daily</span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 10 }}>
               {[
                 { label: "Min", val: timeSeries.min_value?.toFixed(2), color: "#0284c7" },
                 { label: "Max", val: timeSeries.max_value?.toFixed(2), color: "#ef4444" },
@@ -328,16 +359,16 @@ export default function ProfilePanel({
                 { label: "Std", val: timeSeries.std_value?.toFixed(2), color: "#64748b" },
               ].map(({ label, val, color }) => (
                 <div key={label} style={{
-                  background: "#f8fafc", borderRadius: 6, padding: "6px 8px",
+                  background: "#f8fafc", borderRadius: 6, padding: "6px 7px",
                   textAlign: "center", border: "1px solid #e2e8f0"
                 }}>
-                  <div style={{ fontSize: 9.5, color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>{label}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color }}>{val}</div>
+                  <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>{label}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 800, color }}>{val}</div>
                 </div>
               ))}
             </div>
 
-            <ResponsiveContainer width="100%" height={150}>
+            <ResponsiveContainer width="100%" height={140}>
               <AreaChart
                 data={(() => {
                   const step = Math.max(1, Math.floor(timeSeries.dates.length / 200));
@@ -389,45 +420,184 @@ export default function ProfilePanel({
         </div>
       )}
 
-      {/* ── Active Float / Glider List (ONLY shown if not hidden) ─ */}
+      {/* ── 2. Comprehensive Variable Explanation & Reading Card ───────── */}
+      {!hideHeaderCard && (
+        <VariableExplanationCard
+          variable={variable}
+          colorRange={colorRange}
+          surface={surface}
+        />
+      )}
+
+      {/* ── 3. In-Situ Platforms Directory Flow (Collapsible) ───────── */}
       {!hideInstrumentList && (
-        <div className="panel-section" style={{ marginBottom: 16 }}>
-          <div className="section-header">
-            🔴 In-Situ Platforms ({allList.length})
-            <span className="argo-badge" style={{ marginLeft: "auto", fontSize: 9 }}>Argo + Gliders</span>
+        <div className="panel-section fade-up" style={{ marginBottom: 14 }}>
+          <div style={{
+            background: "#ffffff",
+            border: "1.5px solid #e2e8f0",
+            borderTop: directoryOpen ? "3px solid #0284c7" : "1.5px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "12px 14px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.03)"
+          }}>
+            {/* Directory Header Bar */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 18 }}>📁</span>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 13.5, color: "#0f172a", fontFamily: "var(--font-display)" }}>
+                    In-Situ Platform Directory
+                  </div>
+                  <div style={{ fontSize: 11, color: "#64748b" }}>
+                    {instruments.length} Argo Floats + {gliders.length} Gliders ({bgcFloatsCount} BGC)
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setDirectoryOpen(o => !o)}
+                style={{
+                  background: directoryOpen ? "#0f172a" : "#0284c7",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "6px 13px",
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  transition: "all 0.12s",
+                  boxShadow: directoryOpen ? "none" : "0 2px 5px rgba(2,132,199,0.25)"
+                }}
+              >
+                {directoryOpen ? "▲ Hide Directory" : `▼ Open Directory (${allList.length})`}
+              </button>
+            </div>
+
+            {/* Collapsed Compact State Summary */}
+            {!directoryOpen && (
+              <div
+                onClick={() => setDirectoryOpen(true)}
+                style={{
+                  marginTop: 10,
+                  fontSize: 12,
+                  color: "#475569",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  borderTop: "1px dashed #e2e8f0",
+                  paddingTop: 8,
+                  cursor: "pointer"
+                }}
+              >
+                <span>📍 95 Active Platforms across Arabian Sea & Bay of Bengal</span>
+                <span style={{ fontSize: 11, color: "#0284c7", fontWeight: 800 }}>
+                  Browse Directory →
+                </span>
+              </div>
+            )}
+
+            {/* Expanded Directory Flow View */}
+            {directoryOpen && (
+              <div style={{ marginTop: 12, borderTop: "1px solid #e2e8f0", paddingTop: 10 }}>
+                {/* Search Input */}
+                <input
+                  type="text"
+                  placeholder="🔍 Search float WMO ID, glider, coords..."
+                  value={directorySearch}
+                  onChange={(e) => setDirectorySearch(e.target.value)}
+                  style={{
+                    width: "100%", padding: "6px 9px", borderRadius: 5,
+                    border: "1.5px solid #cbd5e1", fontSize: 11, background: "#f8fafc",
+                    marginBottom: 8, color: "#0f172a"
+                  }}
+                />
+
+                {/* Filter tabs */}
+                <div style={{ display: "flex", gap: 3, marginBottom: 8, background: "#f1f5f9", padding: 2, borderRadius: 5 }}>
+                  {[
+                    { id: "all", label: `All (${allList.length})` },
+                    { id: "argo", label: `Floats (${instruments.length})` },
+                    { id: "glider", label: `Gliders (${gliders.length})` },
+                    { id: "bgc", label: `BGC (${bgcFloatsCount})` },
+                  ].map(({ id, label }) => (
+                    <button
+                      key={id}
+                      onClick={() => setDirectoryFilter(id)}
+                      style={{
+                        flex: 1, padding: "3px 2px", fontSize: 9, fontWeight: 700,
+                        borderRadius: 4, border: "none", cursor: "pointer",
+                        background: directoryFilter === id ? "#0f172a" : "transparent",
+                        color: directoryFilter === id ? "#ffffff" : "#64748b"
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Platform List */}
+                <ul className="instrument-list" style={{ maxHeight: 260, overflowY: "auto", paddingRight: 2 }}>
+                  {filteredDirectoryList.map((inst) => {
+                    const isGlider = inst.kind === "glider";
+                    const isSelected = inst.instrument_id === selectedId;
+                    return (
+                      <li
+                        key={inst.instrument_id}
+                        className={isSelected ? "active" : ""}
+                        onClick={() => {
+                          onSelect(inst.instrument_id);
+                        }}
+                        style={{
+                          borderWidth: isSelected ? 2 : 1.5,
+                          borderColor: isSelected ? "#0284c7" : "#e2e8f0",
+                          background: isSelected ? "#f0f9ff" : "#ffffff",
+                          borderRadius: 6,
+                          padding: "6px 8px",
+                          marginBottom: 4,
+                          boxShadow: isSelected ? "0 2px 6px rgba(2,132,199,0.12)" : "none"
+                        }}
+                      >
+                        <div className="inst-header" style={{ justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                            <span className={`tag ${isGlider ? "glider" : "argo"}`} style={{ fontSize: 8.5 }}>
+                              {isGlider ? "GLIDER" : "ARGO"}
+                            </span>
+                            {inst.bgc_params?.length > 0 && <span className="tag bgc" style={{ fontSize: 8.5 }}>BGC</span>}
+                            <span className="inst-id" style={{ fontSize: 11, color: isSelected ? "#0284c7" : "#0f172a" }}>
+                              {inst.platform_number || inst.instrument_id}
+                            </span>
+                          </div>
+                          {isSelected && <span style={{ fontSize: 8.5, color: "#0284c7", fontWeight: 800 }}>ACTIVE →</span>}
+                        </div>
+                        <div className="inst-meta" style={{ fontSize: 11 }}>
+                          📍 {inst.latitude?.toFixed(2)}°N, {inst.longitude?.toFixed(2)}°E · 📅 {inst.timestamp?.slice(0, 10)}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
-          <ul className="instrument-list">
-            {allList.slice(0, 25).map((inst) => {
-              const isGlider = inst.kind === "glider";
-              return (
-                <li
-                  key={inst.instrument_id}
-                  className={inst.instrument_id === selectedId ? "active" : ""}
-                  onClick={() => onSelect(inst.instrument_id)}
-                >
-                  <div className="inst-header">
-                    <span className={`tag ${isGlider ? "glider" : "argo"}`}>
-                      {isGlider ? "GLIDER" : "ARGO"}
-                    </span>
-                    {inst.bgc_params?.length > 0 && <span className="tag bgc">BGC</span>}
-                    <span className="inst-id">{inst.platform_number || inst.instrument_id}</span>
-                  </div>
-                  <div className="inst-meta">
-                    {inst.latitude?.toFixed(2)}°N, {inst.longitude?.toFixed(2)}°E
-                    &nbsp;·&nbsp;{inst.timestamp?.slice(0, 10)}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
         </div>
       )}
 
-      {/* ── Vertical Depth Profile & Dual-Line Comparison ─ */}
+      {/* ── 4. Selected Instrument Depth Profile & Co-Location ───────── */}
       <div className="panel-section" style={{ width: "100%" }}>
-        {!hideHeaderCard && (
-          <div className="section-header" style={{ color: "#0f172a", fontSize: 12, fontWeight: 700, marginBottom: 12 }}>
-            📊 Depth Profile & In-Situ Observation
+        {selectedId && !hideHeaderCard && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", fontFamily: "var(--font-display)" }}>
+              📊 Selected Profile: {selectedId}
+            </div>
+            <button
+              onClick={() => onSelect(null)}
+              style={{
+                fontSize: 10, fontWeight: 700, color: "#64748b", background: "#f1f5f9",
+                border: "1px solid #cbd5e1", borderRadius: 4, padding: "2px 6px", cursor: "pointer"
+              }}
+            >
+              ✕ Clear Profile
+            </button>
           </div>
         )}
 

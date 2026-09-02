@@ -48,6 +48,8 @@ export default function ControlPanel({
   onColorScaleChange,
   activeVarInfo,
   viewMode,
+  nativeMin,
+  nativeMax,
 }) {
   if (!meta && !volumetricMeta) {
     return (
@@ -339,6 +341,8 @@ export default function ControlPanel({
           scale={colorScale}
           onScaleChange={onColorScaleChange}
           unit={activeVarInfo?.units || ""}
+          nativeMin={nativeMin}
+          nativeMax={nativeMax}
         />
       </div>
 

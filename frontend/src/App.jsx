@@ -125,6 +125,15 @@ export default function App() {
     }
   };
 
+  // ── Handle variable change with automatic palette & range recalibration ──
+  const handleVariableChange = useCallback((newVar) => {
+    setIsPlaying(false);
+    setVariable(newVar);
+    const newPal = paletteForVariable(newVar);
+    setPalette(newPal);
+    setColorRange(null);
+  }, []);
+
   // ── Fetch surface or depth slice data ────────────────────────────────────
   useEffect(() => {
     if (!variable) return;
@@ -137,17 +146,17 @@ export default function App() {
       api.getDepthSlice(variable, date, depthVal, 1)
         .then((s) => {
           setSurface(s);
-          if (colorRange === null && s) {
+          if (s && s.min_value !== undefined && s.max_value !== undefined) {
             setColorRange({ min: s.min_value, max: s.max_value });
           }
         })
         .catch(console.error)
         .finally(() => setSurfaceLoading(false));
     } else {
-      api.getSurface(variable, date, 4)
+      api.getSurface(variable, date, 2)
         .then((s) => {
           setSurface(s);
-          if (colorRange === null && s) {
+          if (s && s.min_value !== undefined && s.max_value !== undefined) {
             setColorRange({ min: s.min_value, max: s.max_value });
           }
         })
@@ -346,7 +355,7 @@ export default function App() {
             datasetMode={datasetMode}
             onDatasetModeChange={handleDatasetModeChange}
             variable={variable}
-            onVariableChange={(v) => { setIsPlaying(false); setVariable(v); }}
+            onVariableChange={handleVariableChange}
             dateIndex={safeDateIndex}
             onDateIndexChange={(i) => { setIsPlaying(false); setDateIndex(i); }}
             dates={activeDates}
@@ -374,6 +383,8 @@ export default function App() {
             onColorScaleChange={setColorScale}
             activeVarInfo={activeVarInfo}
             viewMode={viewMode}
+            nativeMin={surface?.min_value}
+            nativeMax={surface?.max_value}
           />
 
           {/* Center viewport */}
@@ -498,6 +509,8 @@ export default function App() {
             timeSeriesPoint={clickedPoint}
             loading={profileLoading || tsLoading}
             variable={variable}
+            colorRange={colorRange}
+            surface={surface}
           />
         </main>
       )}

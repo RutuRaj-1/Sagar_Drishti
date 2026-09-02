@@ -13,7 +13,7 @@ export const VARIABLE_COLORS = {
   zos:    { color: "#74b9ff", dark: "#0984e3", bg: "rgba(116,185,255,0.10)", gradient: "linear-gradient(135deg,#0984e3,#74b9ff)" },
   mlotst: { color: "#a29bfe", dark: "#6c5ce7", bg: "rgba(162,155,254,0.10)", gradient: "linear-gradient(135deg,#6c5ce7,#a29bfe)" },
   pbo:    { color: "#fd79a8", dark: "#e84393", bg: "rgba(253,121,168,0.10)", gradient: "linear-gradient(135deg,#e84393,#fd79a8)" },
-  sivelo: { color: "#dfe6e9", dark: "#b2bec3", bg: "rgba(223,230,233,0.07)", gradient: "linear-gradient(135deg,#b2bec3,#dfe6e9)" },
+  sivelo: { color: "#00cec9", dark: "#0097a7", bg: "rgba(0,206,201,0.12)",   gradient: "linear-gradient(135deg,#0097a7,#00cec9)" },
 };
 
 /**
@@ -74,10 +74,28 @@ export const PALETTES = {
     [17, 100, 180],[15, 60, 145],  [10, 25, 100],  [5, 10, 55],
   ],
 
-  // ── Ice — sea ice variables (dark ocean→white ice) ───────────────────────
+  // ── Speed — surface current drift (calm navy→sapphire→cyan→mint→emerald→gold→orange→red) ──
+  speed: [
+    [10, 25, 75],    // calm deep navy (<0.1 m/s)
+    [20, 80, 155],   // oceanic sapphire (0.2 m/s)
+    [0, 175, 215],   // vibrant cyan (0.35 m/s)
+    [35, 205, 160],  // mint/turquoise (0.5 m/s)
+    [120, 220, 85],  // spring emerald (0.7 m/s)
+    [245, 210, 50],  // warm gold (0.9 m/s)
+    [255, 130, 40],  // jet orange (1.2 m/s)
+    [225, 30, 30],   // intense red boundary current (>1.5 m/s)
+  ],
+
+  // ── Ice — sea ice / glacial (deep navy→aqua→frost mint→gold) ────────────
   ice: [
-    [4, 35, 51],   [23, 86, 118], [28, 130, 162], [78, 180, 199],
-    [157, 218, 228],[222, 243, 245],[245, 252, 253],[255, 255, 255],
+    [8, 48, 80],     // deep navy
+    [20, 90, 135],   // slate blue
+    [30, 145, 185],  // arctic cyan
+    [65, 195, 215],  // glacial turquoise
+    [120, 225, 225], // light aqua
+    [190, 242, 235], // frost mint
+    [245, 220, 120], // high-speed golden edge
+    [255, 120, 60],  // intense drift orange
   ],
 
   // ── RdBu — anomaly (negative=blue, zero=white, positive=red) ─────────────
@@ -102,9 +120,13 @@ export const VARIABLE_PALETTES = {
   zos: "viridis",
   mlotst: "deep",
   pbo: "deep",
-  sivelo: "ice",
+  sivelo: "speed",
   usi: "velocity",
   vsi: "velocity",
+  temperature: "thermal",
+  salinity: "haline",
+  u_current: "velocity",
+  v_current: "velocity",
 };
 
 export function paletteForVariable(varName) {
