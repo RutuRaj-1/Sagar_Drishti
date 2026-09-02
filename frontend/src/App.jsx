@@ -194,7 +194,8 @@ export default function App() {
     if (!selectedInstrumentId) return;
     setProfileLoading(true);
 
-    if (selectedInstrumentId.startsWith("GLIDER")) {
+    const isGlider = selectedInstrumentId.startsWith("GLIDER") || gliders.some(g => g.instrument_id === selectedInstrumentId);
+    if (isGlider) {
       api.getGliderProfile(selectedInstrumentId)
         .then(setProfile)
         .catch(console.error)
@@ -205,7 +206,7 @@ export default function App() {
         .catch(console.error)
         .finally(() => setProfileLoading(false));
     }
-  }, [selectedInstrumentId, variable]);
+  }, [selectedInstrumentId, variable, gliders]);
 
   // ── Map click → time-series fetch ─────────────────────────────────────────
   const handleMapClick = useCallback((lat, lon) => {
@@ -275,7 +276,7 @@ export default function App() {
           <div className="dataset-badge">
             <div className="dot" />
             <strong>{datasetMode === "volumetric" ? "4D Volumetric" : "CMEMS Gridded"}</strong>
-            &nbsp;·&nbsp;<strong style={{ color: "var(--c-chla)" }}>91 Floats + 4 Gliders</strong>
+            &nbsp;·&nbsp;<strong style={{ color: "var(--c-chla)" }}>{instruments.length} Floats + {gliders.length} Gliders</strong>
           </div>
           <div className={`status-pill${apiOnline === false ? " offline" : ""}`}>
             {apiOnline === null
@@ -501,7 +502,7 @@ function ArgoExplorer({ instruments, gliders, allTrajectories, selectedId, onSel
         <div className="argo-header-card">
           <div className="argo-title">🔴 In-Situ Instrument Explorer</div>
           <div className="argo-subtitle">
-            91 Coriolis Argo Floats + 4 Autonomous Gliders<br />
+            {instruments.length} Coriolis Argo Floats + {gliders.length} IOOS Slocum Gliders<br />
             Indian Ocean Domain (5°N–23°N, 60°E–97°E)
           </div>
         </div>

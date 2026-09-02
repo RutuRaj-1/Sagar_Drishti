@@ -26,11 +26,13 @@ ARGO_NC_DIR = os.path.join(DATA_DIR, "DataSelection_20260831_164219_15508736")
 
 # ── Real 4D Volumetric NetCDF — CMEMS MOI GLO12 (thetao, so, uo, vo) ─────────
 # Downloaded via copernicusmarine CLI: GLOBAL_ANALYSISFORECAST_PHY_001_024
-# 4 variables × 7 days × 34 depth levels × 205 lat × 325 lon  (~2 GB)
+# 4 variables × 7 days × 34 depth levels × 205 lat × 325 lon  (~242 MB)
 REAL_4D_NC_PATH = os.path.join(DATA_DIR, "real_ocean_model_4d.nc")
 
-# ── Glider tracks (synthetic placeholder — replace with OceanGliders ERDDAP) ──
-GLIDER_JSON_PATH = os.path.join(DATA_DIR, "glider_tracks_sample.json")
+# ── Real Ocean Glider Missions — IOOS ERDDAP / Rutgers RU29 Slocum Glider ─────
+# Dataset: ru29-20180812T0220 (Indian Ocean / Bay of Bengal / Sri Lanka Dome)
+# 4 operational mission phases, 24,611 real CTD observations down to 962m depth
+GLIDER_JSON_PATH = os.path.join(DATA_DIR, "real_glider_tracks.json")
 
 # ── Copernicus CMEMS variable catalogue ───────────────────────────────────────
 # Maps nc_name → display metadata for the API and the frontend color system.
