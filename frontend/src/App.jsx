@@ -7,6 +7,7 @@ import OceanMap from "./components/OceanMap.jsx";
 import Scene3D from "./components/Scene3D.jsx";
 import ProfilePanel from "./components/ProfileChart.jsx";
 import StatsDashboard from "./components/StatsDashboard.jsx";
+import InstrumentSummaryPanel from "./components/InstrumentSummaryPanel.jsx";
 
 export default function App() {
   // ── API / dataset state ──────────────────────────────────────────────────
@@ -48,6 +49,7 @@ export default function App() {
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [modelProfile, setModelProfile] = useState(null);
   const [allTrajectories, setAllTrajectories] = useState([]);
 
   // ── Map click / time-series ─────────────────────────────────────────────
@@ -208,6 +210,22 @@ export default function App() {
     }
   }, [selectedInstrumentId, variable, gliders]);
 
+  // ── Co-located model profile fetch (for comparison & summary) ────────────
+  useEffect(() => {
+    if (!profile) {
+      setModelProfile(null);
+      return;
+    }
+    const varName = (variable === "sob" || variable === "salinity") ? "salinity" : "temperature";
+    const dateStr = profile.timestamp?.slice(0, 10) || "2026-08-31";
+    api.getModelProfile(profile.latitude, profile.longitude, dateStr, varName)
+      .then(setModelProfile)
+      .catch((err) => {
+        console.warn("Could not fetch model profile for summary:", err);
+        setModelProfile(null);
+      });
+  }, [profile, variable]);
+
   // ── Map click → time-series fetch ─────────────────────────────────────────
   const handleMapClick = useCallback((lat, lon) => {
     setClickedPoint({ lat, lon });
@@ -311,6 +329,7 @@ export default function App() {
             profile={profile}
             profileLoading={profileLoading}
             variable={variable}
+            modelProfile={modelProfile}
           />
         </main>
       )}
@@ -487,17 +506,53 @@ export default function App() {
 }
 
 /* ═══════════════════════════════════════════════════════
-   Argo & Gliders Explorer Tab
+   Argo & Gliders Explorer Tab (3-Column Executive Layout)
    ═══════════════════════════════════════════════════════ */
-function ArgoExplorer({ instruments, gliders, allTrajectories, selectedId, onSelect, profile, profileLoading, variable }) {
-  const allList = [
+function ArgoExplorer({
+  instruments,
+  gliders,
+  allTrajectories,
+  selectedId,
+  onSelect,
+  profile,
+  profileLoading,
+  variable,
+  modelProfile,
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState("all"); // "all" | "argo" | "glider" | "bgc"
+
+  const allList = useMemo(() => [
     ...instruments.map(i => ({ ...i, kind: "argo" })),
     ...gliders.map(g => ({ ...g, kind: "glider" })),
-  ];
-  const bgcFloats = instruments.filter(i => i.bgc_params?.length > 0);
+  ], [instruments, gliders]);
+
+  const bgcFloats = useMemo(() => instruments.filter(i => i.bgc_params?.length > 0), [instruments]);
+
+  // Filtered list based on search and type
+  const filteredList = useMemo(() => {
+    return allList.filter((inst) => {
+      // Type filter
+      if (filterType === "argo" && inst.kind !== "argo") return false;
+      if (filterType === "glider" && inst.kind !== "glider") return false;
+      if (filterType === "bgc" && (!inst.bgc_params || inst.bgc_params.length === 0)) return false;
+
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const idStr = String(inst.platform_number || inst.instrument_id || "").toLowerCase();
+        const nameStr = String(inst.name || "").toLowerCase();
+        const latStr = String(inst.latitude || "");
+        const lonStr = String(inst.longitude || "");
+        return idStr.includes(q) || nameStr.includes(q) || latStr.includes(q) || lonStr.includes(q);
+      }
+      return true;
+    });
+  }, [allList, filterType, searchQuery]);
 
   return (
     <div className="argo-layout">
+      {/* ── Left Column: In-Situ Platform List Sidebar ── */}
       <div className="argo-sidebar">
         <div className="argo-header-card">
           <div className="argo-title">🔴 In-Situ Instrument Explorer</div>
@@ -507,10 +562,11 @@ function ArgoExplorer({ instruments, gliders, allTrajectories, selectedId, onSel
           </div>
         </div>
 
+        {/* 4 Stat Boxes */}
         <div className="float-stat-row">
           <div className="float-stat">
             <span className="float-stat-value">{instruments.length}</span>
-            <div className="float-stat-label">Argo Floats</div>
+            <div className="float-stat-label">Floats</div>
           </div>
           <div className="float-stat">
             <span className="float-stat-value" style={{ color: "#00d4f0" }}>{gliders.length}</span>
@@ -518,35 +574,94 @@ function ArgoExplorer({ instruments, gliders, allTrajectories, selectedId, onSel
           </div>
           <div className="float-stat">
             <span className="float-stat-value" style={{ color: "var(--c-doxy)" }}>{bgcFloats.length}</span>
-            <div className="float-stat-label">BGC Floats</div>
+            <div className="float-stat-label">BGC</div>
           </div>
           <div className="float-stat">
             <span className="float-stat-value" style={{ color: "var(--c-chla)" }}>{allTrajectories.length}</span>
-            <div className="float-stat-label">Trajectories</div>
+            <div className="float-stat-label">Tracks</div>
           </div>
         </div>
 
-        <div className="panel-section">
-          <div className="panel-section-title"><span className="icon">📡</span> Select Platform</div>
+        {/* Search Input */}
+        <div style={{ marginBottom: 10 }}>
+          <input
+            type="text"
+            placeholder="🔍 Search float ID, glider, coords..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: "100%", padding: "7px 10px", borderRadius: 6,
+              border: "1.5px solid #cbd5e1", fontSize: 11.5, background: "#f8fafc",
+              color: "#0f172a"
+            }}
+          />
+        </div>
+
+        {/* Filter Tabs */}
+        <div style={{ display: "flex", gap: 3, marginBottom: 12, background: "#f1f5f9", padding: 3, borderRadius: 6, border: "1px solid #e2e8f0" }}>
+          {[
+            { id: "all", label: `All (${allList.length})` },
+            { id: "argo", label: `Floats (${instruments.length})` },
+            { id: "glider", label: `Gliders (${gliders.length})` },
+            { id: "bgc", label: `BGC (${bgcFloats.length})` },
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setFilterType(id)}
+              style={{
+                flex: 1, padding: "4px 2px", fontSize: 9.5, fontWeight: 700,
+                borderRadius: 4, border: "none", cursor: "pointer",
+                background: filterType === id ? "#0f172a" : "transparent",
+                color: filterType === id ? "#ffffff" : "#64748b",
+                transition: "all 0.12s", textAlign: "center"
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Platform List */}
+        <div className="panel-section" style={{ border: "none", padding: 0 }}>
+          <div className="panel-section-title" style={{ color: "#334155", fontSize: 11, marginBottom: 8 }}>
+            <span>📡</span> Available Platforms ({filteredList.length})
+          </div>
           <ul className="instrument-list">
-            {allList.map((inst) => {
+            {filteredList.map((inst) => {
               const isGlider = inst.kind === "glider";
+              const isSelected = inst.instrument_id === selectedId;
               return (
                 <li
                   key={inst.instrument_id}
-                  className={inst.instrument_id === selectedId ? "active" : ""}
+                  className={isSelected ? "active" : ""}
                   onClick={() => onSelect(inst.instrument_id)}
+                  style={{
+                    borderWidth: isSelected ? 2 : 1.5,
+                    borderColor: isSelected ? "#0284c7" : "#e2e8f0",
+                    background: isSelected ? "#f0f9ff" : "#ffffff",
+                    borderRadius: 7, padding: "8px 10px", marginBottom: 5,
+                    boxShadow: isSelected ? "0 2px 6px rgba(2,132,199,0.15)" : "0 1px 2px rgba(0,0,0,0.02)"
+                  }}
                 >
-                  <div className="inst-header">
-                    <span className={`tag ${isGlider ? "bgc" : "argo"}`}>
-                      {isGlider ? "GLIDER" : "ARGO"}
-                    </span>
-                    {inst.bgc_params?.length > 0 && <span className="tag bgc">BGC</span>}
-                    <span className="inst-id">{inst.platform_number || inst.instrument_id}</span>
+                  <div className="inst-header" style={{ justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span className={`tag ${isGlider ? "glider" : "argo"}`}>
+                        {isGlider ? "GLIDER" : "ARGO"}
+                      </span>
+                      {inst.bgc_params?.length > 0 && <span className="tag bgc">BGC</span>}
+                      <span className="inst-id" style={{ color: isSelected ? "#0284c7" : "#0f172a" }}>
+                        {inst.platform_number || inst.instrument_id}
+                      </span>
+                    </div>
+                    {isSelected && (
+                      <span style={{ fontSize: 9, color: "#0284c7", fontWeight: 800 }}>
+                        ACTIVE →
+                      </span>
+                    )}
                   </div>
-                  <div className="inst-meta">
-                    {inst.latitude?.toFixed(2)}°N, {inst.longitude?.toFixed(2)}°E
-                    &nbsp;·&nbsp;{inst.timestamp?.slice(0, 10)}
+                  <div className="inst-meta" style={{ marginTop: 3 }}>
+                    📍 {inst.latitude?.toFixed(2)}°N, {inst.longitude?.toFixed(2)}°E
+                    &nbsp;·&nbsp;📅 {inst.timestamp?.slice(0, 10)}
                   </div>
                 </li>
               );
@@ -555,19 +670,34 @@ function ArgoExplorer({ instruments, gliders, allTrajectories, selectedId, onSel
         </div>
       </div>
 
+      {/* ── Center Column: Direct Graph Viewport (NO duplicate instrument list!) ── */}
       <div className="argo-main">
         {!selectedId ? (
           <div style={{
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            height: "60%", color: "var(--steel-500)", textAlign: "center", gap: 16
+            height: "75%", color: "#64748b", textAlign: "center", gap: 14,
+            background: "#ffffff", border: "1.5px solid #e2e8f0", borderRadius: 10, padding: 36,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
           }}>
-            <div style={{ fontSize: 48, opacity: 0.35 }}>🔴</div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: "var(--steel-700)" }}>
-              Select an In-Situ Platform
+            <div style={{ fontSize: 52, opacity: 0.7 }}>📡</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "#0f172a" }}>
+              Select an In-Situ Instrument
             </div>
-            <div style={{ fontSize: 12, maxWidth: 360, lineHeight: 1.7, color: "var(--steel-500)" }}>
-              Choose an Argo float or Glider from the list to view its multi-parameter depth profile,
-              validation statistics against numerical models, and T-S water mass diagram.
+            <div style={{ fontSize: 12.5, maxWidth: 420, lineHeight: 1.7, color: "#475569" }}>
+              Choose any Argo profiling float or Autonomous Ocean Glider from the left panel to immediately view its full multi-parameter depth profile, numerical model co-location errors, and T-S water mass distribution.
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => onSelect(allList[0]?.instrument_id)}
+                style={{
+                  padding: "8px 16px", fontSize: 11.5, fontWeight: 700,
+                  background: "linear-gradient(135deg, #0284c7, #0369a1)", color: "#ffffff",
+                  border: "none", borderRadius: 6, cursor: "pointer"
+                }}
+              >
+                Inspect Sample Float ({allList[0]?.platform_number || allList[0]?.instrument_id}) →
+              </button>
             </div>
           </div>
         ) : (
@@ -581,8 +711,19 @@ function ArgoExplorer({ instruments, gliders, allTrajectories, selectedId, onSel
             timeSeriesPoint={null}
             loading={profileLoading}
             variable={variable}
+            hideInstrumentList={true}
+            hideHeaderCard={false}
           />
         )}
+      </div>
+
+      {/* ── Right Column: Telemetry & In-Situ Reading Summary Sidebar ── */}
+      <div className="argo-summary-sidebar">
+        <InstrumentSummaryPanel
+          profile={profile}
+          modelProfile={modelProfile}
+          selectedId={selectedId}
+        />
       </div>
     </div>
   );
