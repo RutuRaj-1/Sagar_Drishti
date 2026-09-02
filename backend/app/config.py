@@ -2,9 +2,15 @@
 config.py
 ---------
 Central configuration for the SAGAR-DRISHTI backend.
-Points to the real Copernicus Marine Ocean Dataset and the real Argo float
-NC files from the Coriolis DataSelection export. Both datasets are used
-simultaneously — CMEMS for the gridded model fields, Argo for in-situ profiles.
+
+Datasets in use (ALL REAL, no synthetic data):
+  1. cmems_Copernicus_Marine_Ocean_Dataset.nc  — 5.8 GB, 2D surface/bottom fields
+     14 variables (tob, sob, zos, mlotst, …), 5°N–22°N / 68°E–95°E, ~4-year daily
+  2. real_ocean_model_4d.nc                   — 2 GB, 4D depth-resolved fields
+     4 variables (thetao, so, uo, vo), 34 depth levels (1.5 m–902 m), 7 time steps
+     Source: Copernicus Marine MOI GLO12 — GLOBAL_ANALYSISFORECAST_PHY_001_024
+  3. DataSelection_20260831_164219_15508736/   — 183 real Argo float NC files
+     91 CTD profiles + 92 trajectories, Jun 2025 – Aug 2026, Coriolis GDAC
 """
 import os
 
@@ -18,8 +24,12 @@ NC_PATH = os.path.join(DATA_DIR, "cmems_Copernicus_Marine_Ocean_Dataset.nc")
 # 91 argo-profiles-*.nc + 92 argo-trajectory-*.nc covering Jun 2025 – Aug 2026
 ARGO_NC_DIR = os.path.join(DATA_DIR, "DataSelection_20260831_164219_15508736")
 
-# ── 4D Volumetric Sample NetCDF (depth layers, u/v currents) ────────────────
-SAMPLE_NC_PATH = os.path.join(DATA_DIR, "ocean_model_sample.nc")
+# ── Real 4D Volumetric NetCDF — CMEMS MOI GLO12 (thetao, so, uo, vo) ─────────
+# Downloaded via copernicusmarine CLI: GLOBAL_ANALYSISFORECAST_PHY_001_024
+# 4 variables × 7 days × 34 depth levels × 205 lat × 325 lon  (~2 GB)
+REAL_4D_NC_PATH = os.path.join(DATA_DIR, "real_ocean_model_4d.nc")
+
+# ── Glider tracks (synthetic placeholder — replace with OceanGliders ERDDAP) ──
 GLIDER_JSON_PATH = os.path.join(DATA_DIR, "glider_tracks_sample.json")
 
 # ── Copernicus CMEMS variable catalogue ───────────────────────────────────────
