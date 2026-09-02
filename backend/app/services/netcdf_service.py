@@ -159,6 +159,9 @@ def get_timeseries(variable: str, lat: float, lon: float) -> Optional[dict]:
     values_raw = series.values.astype(np.float64)
     values = [None if np.isnan(v) else round(float(v), 4) for v in values_raw]
 
+    # NaN-safe aggregates — return None (JSON null) when all values are missing
+    _valid = values_raw[~np.isnan(values_raw)]
+    _has_valid = len(_valid) > 0
     result = {
         "variable": variable,
         "long_name": config.VARIABLE_CATALOGUE.get(variable, {}).get("long_name", variable),
@@ -167,10 +170,11 @@ def get_timeseries(variable: str, lat: float, lon: float) -> Optional[dict]:
         "lon": float(series.longitude.values),
         "dates": dates,
         "values": values,
-        "min_value": float(np.nanmin(values_raw)),
-        "max_value": float(np.nanmax(values_raw)),
-        "mean_value": float(np.nanmean(values_raw)),
-        "std_value": float(np.nanstd(values_raw)),
+        "min_value": float(np.min(_valid)) if _has_valid else None,
+        "max_value": float(np.max(_valid)) if _has_valid else None,
+        "mean_value": float(np.mean(_valid)) if _has_valid else None,
+        "std_value": float(np.std(_valid)) if _has_valid else None,
+        "n_valid": int(_has_valid and len(_valid)),
     }
     if config.CACHE_ENABLED:
         _cache[key] = result

@@ -10,25 +10,29 @@ import { api } from "../api.js";
 
 /**
  * ProfilePanel — Right sidebar
- * FR-OBS-1: Real Argo float list (from Coriolis NC files)
+ * FR-OBS-1: Real Argo float & Glider list
  * FR-OBS-2: Multi-parameter depth profile + T-S diagram
- * SRS §3.6.3: CMEMS model-vs-Argo observation co-location
+ * FR-3.3: DUAL-LINE MODEL-VS-OBSERVATION CO-LOCATION DEPTH CHART
  */
 
 const PARAM_ORDER = ["TEMP", "PSAL", "DOXY", "CHLA", "NITRATE", "PH_IN_SITU_TOTAL", "BBP700"];
 
 const PARAM_LABELS = {
-  TEMP: "Temp (°C)",
+  TEMP: "Temperature (°C)",
   PSAL: "Salinity (PSU)",
-  DOXY: "O₂ (μmol/kg)",
-  CHLA: "Chl-a (mg/m³)",
-  NITRATE: "NO₃ (μmol/kg)",
+  DOXY: "Dissolved O₂ (μmol/kg)",
+  CHLA: "Chlorophyll-a (mg/m³)",
+  NITRATE: "Nitrate (μmol/kg)",
   PH_IN_SITU_TOTAL: "pH",
-  BBP700: "BBP700 (m⁻¹)",
+  BBP700: "Backscattering (m⁻¹)",
+  temperature: "Temperature (°C)",
+  salinity: "Salinity (PSU)",
+  chlorophyll: "Chlorophyll-a (mg/m³)",
 };
 
 export default function ProfilePanel({
-  instruments,
+  instruments = [],
+  gliders = [],
   selectedId,
   onSelect,
   profile,
@@ -37,9 +41,11 @@ export default function ProfilePanel({
   loading,
   variable,
 }) {
-  const [profileTab, setProfileTab] = useState("depth"); // "depth" | "ts"
+  const [profileTab, setProfileTab] = useState("depth"); // "depth" | "ts" | "comparison"
   const [tsData, setTsData] = useState(null);
   const [tsLoading, setTsLoading] = useState(false);
+  const [modelProfile, setModelProfile] = useState(null);
+  const [modelLoading, setModelLoading] = useState(false);
 
   // Fetch T-S diagram when a float is selected
   useEffect(() => {
@@ -51,21 +57,90 @@ export default function ProfilePanel({
       .finally(() => setTsLoading(false));
   }, [selectedId, profileTab]);
 
-  // Which depth-profile params are available for this float
+  // Fetch co-located Model Depth Profile for dual-line comparison
+  useEffect(() => {
+    if (!profile) {
+      setModelProfile(null);
+      return;
+    }
+    const varName = (variable === "sob" || variable === "salinity") ? "salinity" : "temperature";
+    const dateStr = profile.timestamp?.slice(0, 10) || "2026-08-31";
+
+    setModelLoading(true);
+    api.getModelProfile(profile.latitude, profile.longitude, dateStr, varName)
+      .then(setModelProfile)
+      .catch((err) => {
+        console.warn("Could not fetch model profile:", err);
+        setModelProfile(null);
+      })
+      .finally(() => setModelLoading(false));
+  }, [profile, variable]);
+
   const availableParams = profile?.depth_profiles
-    ? PARAM_ORDER.filter((p) => p in profile.depth_profiles && p !== "PRES")
+    ? Object.keys(profile.depth_profiles).filter((p) => p !== "PRES")
     : [];
 
-  // Build data for the vertical depth chart (recharts layout="vertical")
-  // We use PRES (pressure ≈ depth) as the Y axis
-  function buildDepthChartData(param) {
+  // Build dual-line chart data (Observed + Model on the same vertical depth axis)
+  function buildDualLineData(param) {
     if (!profile?.depth_profiles?.[param]) return [];
     const dp = profile.depth_profiles[param];
-    return dp.pressure.map((p, i) => ({
-      pressure: -Math.abs(p), // negative so deeper = down
-      value: dp.values[i],
-    })).filter(d => d.value !== null);
+
+    // Model depth lookup map
+    const modelLookup = {};
+    if (modelProfile?.depths && modelProfile?.values) {
+      modelProfile.depths.forEach((d, idx) => {
+        modelLookup[Math.round(d)] = modelProfile.values[idx];
+      });
+    }
+
+    // Helper to interpolate model value at arbitrary depth
+    function getModelValAtDepth(depth) {
+      if (!modelProfile?.depths?.length) return null;
+      const dArr = modelProfile.depths;
+      const vArr = modelProfile.values;
+      if (depth <= dArr[0]) return vArr[0];
+      if (depth >= dArr[dArr.length - 1]) return vArr[vArr.length - 1];
+      for (let i = 0; i < dArr.length - 1; i++) {
+        if (depth >= dArr[i] && depth <= dArr[i + 1]) {
+          const t = (depth - dArr[i]) / (dArr[i + 1] - dArr[i]);
+          return vArr[i] + t * (vArr[i + 1] - vArr[i]);
+        }
+      }
+      return null;
+    }
+
+    return dp.pressure.map((p, i) => {
+      const depthVal = Math.abs(p);
+      const obsVal = dp.values[i];
+      const modVal = getModelValAtDepth(depthVal);
+      return {
+        pressure: -depthVal, // negative so deeper = down
+        depth: depthVal,
+        observed: obsVal !== null ? roundVal(obsVal) : null,
+        model: modVal !== null ? roundVal(modVal) : null,
+      };
+    }).filter(d => d.observed !== null);
   }
+
+  function roundVal(v) {
+    return typeof v === "number" ? Math.round(v * 1000) / 1000 : v;
+  }
+
+  // Calculate comparison validation stats (MAE, Bias, RMSE)
+  function computeValidationStats(data) {
+    const valid = data.filter(d => d.observed !== null && d.model !== null);
+    if (!valid.length) return null;
+    const diffs = valid.map(d => d.model - d.observed);
+    const bias = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+    const mae = diffs.reduce((a, b) => a + Math.abs(b), 0) / diffs.length;
+    const rmse = Math.sqrt(diffs.reduce((a, b) => a + b * b, 0) / diffs.length);
+    return { bias, mae, rmse, n: valid.length };
+  }
+
+  const allList = [
+    ...instruments.map(i => ({ ...i, kind: "argo" })),
+    ...gliders.map(g => ({ ...g, kind: "glider" })),
+  ];
 
   return (
     <div className="panel">
@@ -84,7 +159,6 @@ export default function ProfilePanel({
               </span>
             </div>
 
-            {/* KPI strip */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 5, marginBottom: 10 }}>
               {[
                 { label: "Min", val: timeSeries.min_value?.toFixed(2), color: "var(--c-ssh)" },
@@ -96,8 +170,8 @@ export default function ProfilePanel({
                   background: "var(--steel-200)", borderRadius: "var(--radius)", padding: "6px 7px",
                   textAlign: "center", border: "2px solid var(--steel-300)"
                 }}>
-                  <div style={{ fontSize: 9, color: "var(--steel-500)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "var(--font-display)" }}>{label}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color, fontFamily: "var(--font-display)" }}>{val}</div>
+                  <div style={{ fontSize: 9, color: "var(--steel-500)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color }}>{val}</div>
                 </div>
               ))}
             </div>
@@ -134,7 +208,7 @@ export default function ProfilePanel({
                   tickFormatter={(v) => v?.toFixed(1)}
                 />
                 <Tooltip
-                  contentStyle={{ background: "var(--steel-100)", border: "2px solid var(--steel-300)", fontSize: 10.5, borderRadius: "var(--radius)", boxShadow: "var(--shadow-hard-sm)" }}
+                  contentStyle={{ background: "var(--steel-100)", border: "2px solid var(--steel-300)", fontSize: 10.5, borderRadius: "var(--radius)" }}
                   labelStyle={{ color: "var(--steel-700)" }}
                   formatter={(v) => [v?.toFixed(3), timeSeries.unit]}
                 />
@@ -150,175 +224,196 @@ export default function ProfilePanel({
                 />
               </AreaChart>
             </ResponsiveContainer>
-            <div style={{ fontSize: 9, color: "var(--steel-500)", textAlign: "center", marginTop: 4, fontFamily: "var(--font-body)" }}>
-              Amber dashed = long-term mean · Click map to update
-            </div>
           </div>
         </div>
       )}
 
-      {/* ── Real Argo Float List ──────────────────────── */}
+      {/* ── Active Float / Glider List ─────────────────── */}
       <div className="panel-section">
         <div className="section-header">
-          🔴 Argo Floats ({instruments?.length ?? 0})
-          <span className="argo-badge" style={{ marginLeft: "auto", fontSize: 9 }}>Real NC Data</span>
+          🔴 In-Situ Platforms ({allList.length})
+          <span className="argo-badge" style={{ marginLeft: "auto", fontSize: 9 }}>Argo + Gliders</span>
         </div>
-        {(!instruments || instruments.length === 0) && (
-          <div className="profile-empty">No Argo floats loaded yet.<br/>Backend loading real NC files…</div>
-        )}
         <ul className="instrument-list">
-          {(instruments || []).slice(0, 30).map((inst) => (
-            <li
-              key={inst.instrument_id}
-              className={inst.instrument_id === selectedId ? "active" : ""}
-              onClick={() => onSelect(inst.instrument_id)}
-            >
-              <div className="inst-header">
-                <span className="tag argo">ARGO</span>
-                {inst.bgc_params?.length > 0 && <span className="tag bgc">BGC</span>}
-                <span className="inst-id">{inst.platform_number}</span>
-              </div>
-              <div className="inst-meta">
-                {inst.latitude?.toFixed(2)}°N, {inst.longitude?.toFixed(2)}°E
-                &nbsp;·&nbsp;{inst.timestamp?.slice(0, 10)}
-              </div>
-              {/* Param badges */}
-              {inst.bgc_params?.length > 0 && (
-                <div className="param-badges">
-                  {inst.bgc_params.map((p) => (
-                    <span key={p} className="param-badge" style={{
-                      color: ARGO_PARAM_COLORS[p] || "var(--accent)",
-                      borderColor: `${ARGO_PARAM_COLORS[p] || "var(--accent)"}33`,
-                    }}>{p.replace("_IN_SITU_TOTAL","")}</span>
-                  ))}
+          {allList.slice(0, 25).map((inst) => {
+            const isGlider = inst.kind === "glider";
+            return (
+              <li
+                key={inst.instrument_id}
+                className={inst.instrument_id === selectedId ? "active" : ""}
+                onClick={() => onSelect(inst.instrument_id)}
+              >
+                <div className="inst-header">
+                  <span className={`tag ${isGlider ? "bgc" : "argo"}`}>
+                    {isGlider ? "GLIDER" : "ARGO"}
+                  </span>
+                  {inst.bgc_params?.length > 0 && <span className="tag bgc">BGC</span>}
+                  <span className="inst-id">{inst.platform_number || inst.instrument_id}</span>
                 </div>
-              )}
-            </li>
-          ))}
-          {instruments?.length > 30 && (
-            <li style={{ textAlign: "center", color: "var(--muted)", fontSize: 10, padding: "8px", cursor: "default", border: "none" }}>
-              … and {instruments.length - 30} more floats
-            </li>
-          )}
+                <div className="inst-meta">
+                  {inst.latitude?.toFixed(2)}°N, {inst.longitude?.toFixed(2)}°E
+                  &nbsp;·&nbsp;{inst.timestamp?.slice(0, 10)}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </div>
 
-      {/* ── Argo Depth Profile ────────────────────────── */}
+      {/* ── Vertical Depth Profile & Dual-Line Comparison ─ */}
       <div className="panel-section">
-        <div className="section-header">📊 Argo Depth Profile</div>
+        <div className="section-header">
+          📊 Depth Profile & Validation
+        </div>
 
         {loading && (
           <div className="profile-empty">
             <div className="loading-spinner" style={{ width: 28, height: 28, borderWidth: 2, margin: "0 auto 10px" }} />
-            Loading profile…
+            Loading profile & model co-location…
           </div>
         )}
 
         {!loading && !profile && (
           <div className="profile-empty">
-            Click an Argo float in the list or map to<br />inspect its depth profile.
-            <br /><br />
-            <span style={{ color: "var(--accent)", fontSize: 10 }}>
-              Real data: TEMP · PSAL · DOXY · CHLA · NITRATE
-            </span>
+            Click an Argo float or Glider on the map to<br />inspect depth profiles with model co-location.
           </div>
         )}
 
         {!loading && profile && (
           <div className="chart-wrap fade-up">
-            {/* Float info header */}
+            {/* Float Info Card */}
             <div style={{
               background: "var(--steel-200)", borderRadius: "var(--radius)", padding: "10px 12px", marginBottom: 10,
-              border: "2px solid var(--steel-300)", borderLeft: "3px solid var(--c-chla)"
+              border: "2px solid var(--steel-300)", borderLeft: "4px solid var(--c-chla)"
             }}>
-              <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 13, color: "var(--steel-800)", letterSpacing: "-0.01em" }}>
-                Float {profile.platform_number}
+              <div style={{ fontWeight: 700, fontSize: 13, color: "var(--steel-800)" }}>
+                {profile.type === "glider" ? "🌊 Glider" : "🔴 Argo Float"} {profile.platform_number || profile.instrument_id}
               </div>
               <div style={{ fontSize: 10, color: "var(--steel-500)", marginTop: 2 }}>
                 {profile.latitude?.toFixed(3)}°N, {profile.longitude?.toFixed(3)}°E
                 &nbsp;·&nbsp;{profile.timestamp?.slice(0, 10)}
               </div>
-              {/* CMEMS model comparison badge */}
-              {profile.model_comparison && (
-                <div style={{
-                  marginTop: 8,
-                  background: "var(--steel-100)", border: "2px solid var(--steel-300)",
-                  borderRadius: "var(--radius)", padding: "6px 9px", fontSize: 10, color: "var(--steel-600)"
-                }}>
-                  <span className="cmems-badge" style={{ marginRight: 6 }}>🛰️ CMEMS</span>
-                  {profile.model_comparison.variable?.toUpperCase()} at surface:{" "}
-                  <strong style={{ color: "var(--c-ssh)", fontFamily: "var(--font-mono)" }}>
-                    {profile.model_comparison.model_value?.toFixed(3) ?? "N/A"}
-                  </strong>
-                </div>
-              )}
             </div>
 
-            {/* Profile tabs */}
+            {/* Profile Tabs */}
             <div className="profile-tabs">
               <button
                 className={`profile-tab${profileTab === "depth" ? " active" : ""}`}
                 onClick={() => setProfileTab("depth")}
-              >📉 Depth Profile</button>
+              >
+                📉 Dual-Line Comparison
+              </button>
               <button
                 className={`profile-tab${profileTab === "ts" ? " active" : ""}`}
                 onClick={() => setProfileTab("ts")}
-              >🌀 T-S Diagram</button>
+              >
+                🌀 T-S Diagram
+              </button>
             </div>
 
-            {/* ── Depth Profile View ── */}
+            {/* ── Dual-Line Depth Comparison ── */}
             {profileTab === "depth" && (
               <>
                 {availableParams.length === 0 && (
-                  <div className="profile-empty">No profile data available.</div>
+                  <div className="profile-empty">No depth profile levels found.</div>
                 )}
                 {availableParams.map((param) => {
-                  const data = buildDepthChartData(param);
-                  if (data.length === 0) return null;
+                  const chartData = buildDualLineData(param);
+                  if (chartData.length === 0) return null;
+
                   const color = ARGO_PARAM_COLORS[param] || "#00d4f0";
                   const label = PARAM_LABELS[param] || param;
+                  const stats = computeValidationStats(chartData);
+
                   return (
-                    <div key={param} style={{ marginBottom: 14 }}>
+                    <div key={param} style={{ marginBottom: 16 }}>
+                      {/* Metric Header */}
                       <div style={{
-                        fontSize: 10, fontWeight: 700, color,
-                        fontFamily: "var(--font-display)", marginBottom: 5,
-                        display: "flex", alignItems: "center", gap: 6
+                        fontSize: 11, fontWeight: 700, color,
+                        marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between"
                       }}>
-                        <div style={{ width: 8, height: 8, borderRadius: 0, background: color, border: `2px solid ${color}` }} />
-                        {label}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 8, height: 8, background: color, borderRadius: 2 }} />
+                          {label}
+                        </div>
                       </div>
-                      <ResponsiveContainer width="100%" height={140}>
+
+                      {/* Co-location Validation KPI strip */}
+                      {stats && (
+                        <div style={{
+                          display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4,
+                          background: "var(--steel-100)", border: "1px solid var(--steel-300)",
+                          borderRadius: 6, padding: "5px 8px", marginBottom: 8, fontSize: 9.5
+                        }}>
+                          <div>
+                            <span style={{ color: "var(--steel-500)" }}>MAE: </span>
+                            <strong style={{ color: "var(--steel-800)" }}>{stats.mae.toFixed(3)}</strong>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--steel-500)" }}>RMSE: </span>
+                            <strong style={{ color: "var(--steel-800)" }}>{stats.rmse.toFixed(3)}</strong>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--steel-500)" }}>Bias: </span>
+                            <strong style={{ color: stats.bias >= 0 ? "#ff7675" : "#74b9ff" }}>
+                              {stats.bias > 0 ? `+${stats.bias.toFixed(3)}` : stats.bias.toFixed(3)}
+                            </strong>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Dual-Line Vertical Depth Chart */}
+                      <ResponsiveContainer width="100%" height={170}>
                         <LineChart
-                          data={data}
+                          data={chartData}
                           layout="vertical"
                           margin={{ left: 4, right: 10, top: 4, bottom: 4 }}
                         >
                           <CartesianGrid strokeDasharray="3 3" stroke="var(--steel-300)" />
                           <XAxis
                             type="number"
-                            tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
                             domain={["auto", "auto"]}
+                            tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
                           />
                           <YAxis
                             type="number"
                             dataKey="pressure"
                             tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
-                            label={{ value: "dbar", angle: -90, position: "insideLeft", fill: "var(--steel-500)", fontSize: 8 }}
+                            label={{ value: "dbar (depth)", angle: -90, position: "insideLeft", fill: "var(--steel-500)", fontSize: 8 }}
                             width={38}
                           />
                           <Tooltip
-                            contentStyle={{ background: "var(--steel-100)", border: `2px solid ${color}44`, fontSize: 10.5, borderRadius: "var(--radius)", boxShadow: "var(--shadow-hard-sm)" }}
-                            formatter={(v) => [v?.toFixed(3), label]}
-                            labelFormatter={(v) => `${Math.abs(v).toFixed(0)} dbar`}
+                            contentStyle={{ background: "var(--steel-100)", border: `2px solid ${color}44`, fontSize: 10.5, borderRadius: "var(--radius)" }}
+                            formatter={(v, name) => [v?.toFixed(3), name]}
+                            labelFormatter={(v) => `${Math.abs(v).toFixed(0)} dbar depth`}
                           />
+                          <Legend
+                            verticalAlign="bottom"
+                            height={24}
+                            iconSize={10}
+                            wrapperStyle={{ fontSize: 9.5, color: "var(--steel-600)" }}
+                          />
+                          {/* Solid line = In-Situ Observation */}
                           <Line
                             type="monotone"
-                            dataKey="value"
+                            dataKey="observed"
                             stroke={color}
-                            strokeWidth={2}
-                            dot={{ r: 1.5, fill: color }}
-                            name={label}
+                            strokeWidth={2.2}
+                            dot={{ r: 2, fill: color }}
+                            name="Observed (In-Situ)"
                           />
+                          {/* Dashed line = Numerical Model Forecast */}
+                          {modelProfile && (
+                            <Line
+                              type="monotone"
+                              dataKey="model"
+                              stroke="#fdcb6e"
+                              strokeWidth={2}
+                              strokeDasharray="4 4"
+                              dot={{ r: 2, fill: "#fdcb6e" }}
+                              name="CMEMS Model Forecast"
+                            />
+                          )}
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -331,19 +426,12 @@ export default function ProfilePanel({
             {profileTab === "ts" && (
               <>
                 {tsLoading && (
-                  <div className="profile-empty">
-                    <div className="loading-spinner" style={{ width: 24, height: 24, borderWidth: 2, margin: "0 auto 8px" }} />
-                    Loading T-S data…
-                  </div>
-                )}
-                {!tsLoading && !tsData && (
-                  <div className="profile-empty">T-S data not available for this float.<br/>Requires both TEMP and PSAL.</div>
+                  <div className="profile-empty">Loading T-S data…</div>
                 )}
                 {!tsLoading && tsData && tsData.points?.length > 0 && (
                   <>
-                    <div style={{ fontSize: 10, color: "var(--steel-500)", marginBottom: 8, lineHeight: 1.5 }}>
-                      Temperature–Salinity diagram for float <strong style={{ color: "var(--steel-800)", fontFamily: "var(--font-mono)" }}>{tsData.platform_number}</strong>.
-                      Each dot is one depth level. Water mass identification: warm salty → surface; cold fresh → AAIW.
+                    <div style={{ fontSize: 10, color: "var(--steel-500)", marginBottom: 8 }}>
+                      Temperature–Salinity signature for Float <strong>{tsData.platform_number}</strong>.
                     </div>
                     <ResponsiveContainer width="100%" height={200}>
                       <ScatterChart margin={{ left: 4, right: 10, top: 8, bottom: 8 }}>
@@ -354,7 +442,6 @@ export default function ProfilePanel({
                           name="Salinity"
                           unit=" PSU"
                           tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
-                          label={{ value: "Salinity (PSU)", position: "insideBottom", offset: -2, fill: "var(--steel-500)", fontSize: 9 }}
                         />
                         <YAxis
                           type="number"
@@ -362,26 +449,22 @@ export default function ProfilePanel({
                           name="Temperature"
                           unit=" °C"
                           tick={{ fill: "var(--steel-500)", fontSize: 9, fontFamily: "var(--font-mono)" }}
-                          label={{ value: "Temp (°C)", angle: -90, position: "insideLeft", fill: "var(--steel-500)", fontSize: 9 }}
                           width={38}
                         />
                         <ZAxis type="number" dataKey="pressure" range={[3, 30]} name="Pressure" />
                         <Tooltip
                           cursor={{ strokeDasharray: "3 3" }}
-                          contentStyle={{ background: "var(--steel-100)", border: "2px solid var(--steel-300)", fontSize: 10.5, borderRadius: "var(--radius)", boxShadow: "var(--shadow-hard-sm)" }}
+                          contentStyle={{ background: "var(--steel-100)", border: "2px solid var(--steel-300)", fontSize: 10.5 }}
                           formatter={(v, name) => [v?.toFixed(3), name]}
                         />
                         <Scatter
                           data={tsData.points.filter((_, i) => i % 3 === 0)}
                           fill={ARGO_PARAM_COLORS.TEMP}
-                          fillOpacity={0.7}
+                          fillOpacity={0.75}
                           name="T-S"
                         />
                       </ScatterChart>
                     </ResponsiveContainer>
-                    <div style={{ fontSize: 9, color: "var(--steel-500)", textAlign: "center", marginTop: 4 }}>
-                      {tsData.n_points} depth levels · size = pressure (depth)
-                    </div>
                   </>
                 )}
               </>

@@ -2,22 +2,17 @@ import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { colorForValue, paletteForVariable, ARGO_PARAM_COLORS } from "../utils/colormap.js";
+import { extractIsosurface } from "../utils/marchingCubes.js";
 
 /**
- * Scene3D — 3D Surface Perspective View
- * ----------------------------------------
- * Renders the Copernicus Marine 2D surface/bottom field as a THREE.js
- * terrain-style surface mesh where the Z-axis height encodes the variable
- * value (giving a 3D "landscape" feel of ocean conditions).
- *
- * Geographical alignment:
- *   - -X (Left)  = West (Arabian Sea, ~60°E)
- *   - +X (Right) = East (Bay of Bengal, ~97°E)
- *   - -Z (Back/North) = North (23°N)
- *   - +Z (Front/South) = South (5°N)
- *   - Sri Lanka sits in the South-East (+X, +Z) relative to India's southern tip.
- *
- * SRS §FR-VIS-1/2/4/5: 3D volumetric rendering + instrument overlay.
+ * Scene3D — 3D Ocean Perspective & Volumetric View
+ * ------------------------------------------------
+ * Full Tier 1 & Tier 2 WebGL Implementation:
+ *  - 3D Terrain Heightfield Mesh (with vertical exaggeration and vertex colors)
+ *  - 3D Marching Cubes Volumetric Isosurface (e.g. 26°C/28°C cyclone isotherm shell)
+ *  - 3D Current Velocity Cones/Vectors (u, v hydrodynamic flow fields)
+ *  - 3D Argo float & Glider markers with interactive raycasting
+ *  - 3D Billboard Geographical Reference Labels (Arabian Sea, Bay of Bengal, etc.)
  */
 
 function createTextSprite(text, color = "#00d4f0", bg = "rgba(4,17,29,0.85)", fontSize = 32, scaleW = 44, scaleH = 12) {
@@ -26,7 +21,6 @@ function createTextSprite(text, color = "#00d4f0", bg = "rgba(4,17,29,0.85)", fo
   canvas.height = 128;
   const ctx = canvas.getContext("2d");
 
-  // Background rounded rectangle
   ctx.fillStyle = bg;
   if (ctx.roundRect) {
     ctx.roundRect(16, 16, 480, 96, 24);
@@ -38,7 +32,6 @@ function createTextSprite(text, color = "#00d4f0", bg = "rgba(4,17,29,0.85)", fo
   ctx.lineWidth = 4;
   ctx.stroke();
 
-  // Text
   ctx.font = `bold ${fontSize}px 'Outfit', 'Inter', sans-serif`;
   ctx.fillStyle = color;
   ctx.textAlign = "center";
@@ -63,15 +56,22 @@ export default function Scene3D({
   colorScale,
   colorMin,
   colorMax,
-  verticalExaggeration, // height scale for the terrain effect
-  instruments,
+  verticalExaggeration = 1.5,
+  layerOpacity = 0.85,
+  instruments = [],
+  gliders = [],
+  currentVectors = null,
+  showCurrents = false,
+  isosurfaceGrid = null,
+  showIsosurface = false,
+  isovalue = 28.0,
   onSelectInstrument,
   selectedInstrumentId,
 }) {
   const mountRef = useRef(null);
   const stateRef = useRef({});
 
-  // ── One-time scene setup ──────────────────────────────────────────────────
+  // ── One-time Three.js scene setup ─────────────────────────────────────────
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
@@ -86,7 +86,7 @@ export default function Scene3D({
       0.1,
       8000
     );
-    camera.position.set(0, 140, 220);
+    camera.position.set(0, 140, 230);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(mount.clientWidth, mount.clientHeight);
@@ -94,26 +94,25 @@ export default function Scene3D({
     renderer.shadowMap.enabled = true;
     mount.appendChild(renderer.domElement);
 
-    // Orbit controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
     controls.target.set(0, 5, 0);
     controls.minDistance = 30;
-    controls.maxDistance = 650;
+    controls.maxDistance = 750;
     controls.maxPolarAngle = Math.PI * 0.52;
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0x4488aa, 0.7);
+    const ambientLight = new THREE.AmbientLight(0x4488aa, 0.8);
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xaaddff, 1.2);
+    const dirLight = new THREE.DirectionalLight(0xaaddff, 1.4);
     dirLight.position.set(120, 240, 100);
     scene.add(dirLight);
-    const pointLight = new THREE.PointLight(0x00d4f0, 0.6, 500);
+    const pointLight = new THREE.PointLight(0x00d4f0, 0.7, 600);
     pointLight.position.set(-100, 100, -80);
     scene.add(pointLight);
 
-    // Sea base floor plane (reference at y=0)
+    // Sea floor reference plane
     const seaGeo = new THREE.PlaneGeometry(320, 220, 1, 1);
     const seaMat = new THREE.MeshBasicMaterial({
       color: 0x05182a,
@@ -126,18 +125,19 @@ export default function Scene3D({
     seaPlane.position.y = -0.2;
     scene.add(seaPlane);
 
-    // Grid on the sea floor
     const gridHelper = new THREE.GridHelper(320, 20, 0x00d4f0, 0x0a3050);
     gridHelper.position.y = -0.1;
     scene.add(gridHelper);
 
-    // Groups for data, instruments, and labels
+    // Dedicated groups
     const dataGroup = new THREE.Group();
+    const isosurfaceGroup = new THREE.Group();
+    const vectorGroup = new THREE.Group();
     const instrumentGroup = new THREE.Group();
     const labelGroup = new THREE.Group();
-    scene.add(dataGroup, instrumentGroup, labelGroup);
+    scene.add(dataGroup, isosurfaceGroup, vectorGroup, instrumentGroup, labelGroup);
 
-    // ── Static geographic reference labels ─────────────────────────────────
+    // Static geographic reference labels
     const labels = [
       { text: "🌊 Arabian Sea", pos: [-85, 12, -15], color: "#74b9ff", scaleW: 42, scaleH: 11 },
       { text: "🌊 Bay of Bengal", pos: [85, 12, -15], color: "#4ecdc4", scaleW: 42, scaleH: 11 },
@@ -145,7 +145,7 @@ export default function Scene3D({
       { text: "🇱🇰 Sri Lanka", pos: [22, 10, 68], color: "#55efc4", scaleW: 34, scaleH: 10 },
       { text: "🏝️ Lakshadweep", pos: [-45, 8, 38], color: "#9ec4db", scaleW: 38, scaleH: 9 },
       { text: "🏝️ Andaman & Nicobar", pos: [115, 8, 24], color: "#9ec4db", scaleW: 46, scaleH: 9 },
-      { text: "🧭 North (23°N)", pos: [0, 4, -105], color: "#4d7a9a", scaleW: 36, scaleH: 8 },
+      { text: "🧭 North (22°N)", pos: [0, 4, -105], color: "#4d7a9a", scaleW: 36, scaleH: 8 },
       { text: "🧭 South (5°N)", pos: [0, 4, 105], color: "#4d7a9a", scaleW: 36, scaleH: 8 },
     ];
 
@@ -155,7 +155,7 @@ export default function Scene3D({
       labelGroup.add(sprite);
     });
 
-    // Raycasting for instrument clicks
+    // Raycaster for 3D marker clicks
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
@@ -183,11 +183,20 @@ export default function Scene3D({
       controls.update();
       const t = clock.getElapsedTime();
       if (seaMat) seaMat.opacity = 0.65 + 0.05 * Math.sin(t * 0.8);
+
+      // Subtle rotation/pulse for isosurface if present
+      if (isosurfaceGroup.children.length > 0) {
+        isosurfaceGroup.children.forEach(mesh => {
+          if (mesh.material?.opacity) {
+            mesh.material.opacity = layerOpacity * (0.85 + 0.05 * Math.sin(t * 1.2));
+          }
+        });
+      }
+
       renderer.render(scene, camera);
     }
     animate();
 
-    // Resize handler
     function onResize() {
       const w = mount.clientWidth;
       const h = mount.clientHeight;
@@ -200,7 +209,8 @@ export default function Scene3D({
     stateRef.current = {
       ...stateRef.current,
       scene, camera, renderer, controls,
-      dataGroup, instrumentGroup, labelGroup, onSelectInstrument,
+      dataGroup, isosurfaceGroup, vectorGroup, instrumentGroup, labelGroup,
+      onSelectInstrument,
     };
 
     return () => {
@@ -212,17 +222,16 @@ export default function Scene3D({
     };
   }, []);
 
-  // Keep callback fresh
+  // Fresh callback
   useEffect(() => {
     stateRef.current.onSelectInstrument = onSelectInstrument;
   }, [onSelectInstrument]);
 
-  // ── Rebuild terrain mesh whenever data/display params change ──────────────
+  // ── Rebuild 3D Terrain Mesh ───────────────────────────────────────────────
   useEffect(() => {
     const { dataGroup } = stateRef.current;
     if (!dataGroup || !surface) return;
 
-    // Dispose old meshes
     while (dataGroup.children.length) {
       const obj = dataGroup.children.pop();
       obj.geometry?.dispose();
@@ -239,9 +248,8 @@ export default function Scene3D({
     const pal = palette || paletteForVariable(surface.variable);
     const exag = verticalExaggeration ?? 1.5;
 
-    // World extents: 300 wide (lon) × 200 deep (lat)
     const WORLD_W = 300, WORLD_D = 200;
-    const TERRAIN_HEIGHT = 40; // max terrain displacement (scaled by exag)
+    const TERRAIN_HEIGHT = 40;
 
     const geometry = new THREE.PlaneGeometry(WORLD_W, WORLD_D, nLon - 1, nLat - 1);
     geometry.rotateX(-Math.PI / 2);
@@ -251,13 +259,9 @@ export default function Scene3D({
 
     for (let latI = 0; latI < nLat; latI++) {
       for (let lonJ = 0; lonJ < nLon; lonJ++) {
-        // PlaneGeometry vertex order: top row (north) -> bottom row (south)
-        // latI=nLat-1 (north, 23°N) -> row 0 (z = -WORLD_D/2)
-        // latI=0 (south, 5°N) -> row nLat-1 (z = +WORLD_D/2)
         const vIdx = (nLat - 1 - latI) * nLon + lonJ;
         const val = values?.[latI]?.[lonJ];
 
-        // Height displacement
         if (val !== null && val !== undefined && !isNaN(val)) {
           const norm = Math.max(0, Math.min(1, (val - lo) / (hi - lo || 1)));
           positions.setY(vIdx, norm * TERRAIN_HEIGHT * exag);
@@ -265,7 +269,6 @@ export default function Scene3D({
           positions.setY(vIdx, 0);
         }
 
-        // Vertex color
         const [r, g, b] = colorForValue(val, lo, hi, pal, colorScale || "linear");
         colors[vIdx * 3]     = r / 255;
         colors[vIdx * 3 + 1] = g / 255;
@@ -281,12 +284,13 @@ export default function Scene3D({
       shininess: 35,
       specular: new THREE.Color(0x225577),
       side: THREE.FrontSide,
+      transparent: layerOpacity < 1.0,
+      opacity: layerOpacity,
     });
 
     const mesh = new THREE.Mesh(geometry, material);
     dataGroup.add(mesh);
 
-    // Subtle wireframe overlay for depth perception
     const wireGeo = new THREE.WireframeGeometry(geometry);
     const wireMat = new THREE.LineBasicMaterial({
       color: 0x00d4f0,
@@ -297,10 +301,92 @@ export default function Scene3D({
     dataGroup.add(wire);
 
     stateRef.current.meshParams = { lo, hi, exag, TERRAIN_HEIGHT, WORLD_W, WORLD_D };
+  }, [surface, palette, colorMin, colorMax, colorScale, verticalExaggeration, layerOpacity]);
 
-  }, [surface, palette, colorMin, colorMax, colorScale, verticalExaggeration]);
+  // ── Rebuild 3D Marching Cubes Isosurface ──────────────────────────────────
+  useEffect(() => {
+    const { isosurfaceGroup } = stateRef.current;
+    if (!isosurfaceGroup) return;
 
-  // ── Rebuild instrument markers ────────────────────────────────────────────
+    while (isosurfaceGroup.children.length) {
+      const obj = isosurfaceGroup.children.pop();
+      obj.geometry?.dispose();
+      obj.material?.dispose();
+    }
+
+    if (!showIsosurface || !isosurfaceGrid) return;
+
+    try {
+      const isoGeo = extractIsosurface(isosurfaceGrid, isovalue, { width: 300, depth: 200, height: 60 });
+      if (isoGeo) {
+        const isoMat = new THREE.MeshPhongMaterial({
+          color: new THREE.Color(0xff7675),
+          emissive: new THREE.Color(0xff4757).multiplyScalar(0.25),
+          transparent: true,
+          opacity: 0.82,
+          shininess: 70,
+          side: THREE.DoubleSide,
+        });
+        const isoMesh = new THREE.Mesh(isoGeo, isoMat);
+        isosurfaceGroup.add(isoMesh);
+
+        // Subtle wireframe on isosurface
+        const wire = new THREE.LineSegments(
+          new THREE.WireframeGeometry(isoGeo),
+          new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.15 })
+        );
+        isosurfaceGroup.add(wire);
+      }
+    } catch (err) {
+      console.error("Isosurface extraction error:", err);
+    }
+  }, [showIsosurface, isosurfaceGrid, isovalue, layerOpacity]);
+
+  // ── Rebuild 3D Current Velocity Vectors (Cones/Arrows) ────────────────────
+  useEffect(() => {
+    const { vectorGroup } = stateRef.current;
+    if (!vectorGroup) return;
+
+    while (vectorGroup.children.length) {
+      const obj = vectorGroup.children.pop();
+      obj.geometry?.dispose();
+      obj.material?.dispose();
+    }
+
+    if (!showCurrents || !currentVectors?.points || !surface) return;
+
+    const { lat, lon } = surface;
+    const latMin = lat[0], latMax = lat[lat.length - 1];
+    const lonMin = lon[0], lonMax = lon[lon.length - 1];
+    const WORLD_W = 300, WORLD_D = 200;
+
+    const points = currentVectors.points;
+    const coneGeo = new THREE.ConeGeometry(1.2, 4.5, 8);
+    coneGeo.rotateX(Math.PI / 2); // Point forward
+
+    points.forEach((pt) => {
+      const x = ((pt.lon - lonMin) / (lonMax - lonMin) - 0.5) * WORLD_W;
+      const z = -((pt.lat - latMin) / (latMax - latMin) - 0.5) * WORLD_D;
+      const y = 8; // Slightly elevated above ground plane
+
+      const spdNorm = Math.min(1.0, pt.speed / (currentVectors.max_speed || 1.0));
+      const color = new THREE.Color().setHSL(0.55 - spdNorm * 0.35, 1.0, 0.55);
+
+      const coneMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 });
+      const cone = new THREE.Mesh(coneGeo, coneMat);
+
+      cone.position.set(x, y, z);
+      // Math angle_deg (0=East (+X), 90=North (-Z))
+      const rad = (pt.angle_deg * Math.PI) / 180;
+      cone.rotation.y = rad;
+      const scale = 0.8 + spdNorm * 1.4;
+      cone.scale.set(scale, scale, scale);
+
+      vectorGroup.add(cone);
+    });
+  }, [showCurrents, currentVectors, surface]);
+
+  // ── Rebuild 3D Instrument Markers (Argo & Gliders) ────────────────────────
   useEffect(() => {
     const { instrumentGroup } = stateRef.current;
     if (!instrumentGroup || !surface) return;
@@ -310,7 +396,13 @@ export default function Scene3D({
       obj.geometry?.dispose();
       obj.material?.dispose();
     }
-    if (!instruments?.length) return;
+
+    const allInsts = [
+      ...instruments.map(i => ({ ...i, kind: "argo" })),
+      ...gliders.map(g => ({ ...g, kind: "glider" })),
+    ];
+
+    if (!allInsts.length) return;
 
     const { lat, lon, values, min_value, max_value } = surface;
     const latMin = lat[0], latMax = lat[lat.length - 1];
@@ -322,11 +414,10 @@ export default function Scene3D({
     const exag = verticalExaggeration ?? 1.5;
     const TERRAIN_HEIGHT = 40;
 
-    instruments.forEach((inst) => {
+    allInsts.forEach((inst) => {
       const x = ((inst.longitude - lonMin) / (lonMax - lonMin) - 0.5) * WORLD_W;
       const z = -((inst.latitude - latMin) / (latMax - latMin) - 0.5) * WORLD_D;
 
-      // Sample surface terrain height at this coordinate
       const latIdx = Math.max(0, Math.min(nLat - 1, Math.round(((inst.latitude - latMin) / (latMax - latMin)) * (nLat - 1))));
       const lonIdx = Math.max(0, Math.min(nLon - 1, Math.round(((inst.longitude - lonMin) / (lonMax - lonMin)) * (nLon - 1))));
       const val = values?.[latIdx]?.[lonIdx];
@@ -336,23 +427,26 @@ export default function Scene3D({
       const ySurface = norm * TERRAIN_HEIGHT * exag;
 
       const isSelected = inst.instrument_id === selectedInstrumentId;
+      const isGlider = inst.kind === "glider";
       const hasBGC = inst.bgc_params?.length > 0;
-      const color = isSelected ? "#ffffff" : hasBGC ? "#55efc4" : "#fdcb6e";
+      const color = isSelected ? "#ffffff" : isGlider ? "#00d4f0" : hasBGC ? "#55efc4" : "#fdcb6e";
 
       const group = new THREE.Group();
       group.userData.instrumentId = inst.instrument_id;
 
-      // Spike pin from terrain surface upward
-      const stemH = isSelected ? 22 : 15;
+      // Spike stem
+      const stemH = isSelected ? 22 : isGlider ? 18 : 15;
       const stemGeo = new THREE.CylinderGeometry(0.35, 0.1, stemH, 6);
       const stemMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 });
       const stem = new THREE.Mesh(stemGeo, stemMat);
       stem.position.set(x, ySurface + stemH / 2, z);
       group.add(stem);
 
-      // Sphere on top
-      const ballR = isSelected ? 4.5 : 2.8;
-      const ballGeo = new THREE.SphereGeometry(ballR, 16, 16);
+      // Top marker sphere / diamond for glider
+      const ballR = isSelected ? 4.5 : isGlider ? 3.6 : 2.8;
+      const ballGeo = isGlider
+        ? new THREE.OctahedronGeometry(ballR)
+        : new THREE.SphereGeometry(ballR, 16, 16);
       const ballMat = new THREE.MeshPhongMaterial({
         color,
         emissive: new THREE.Color(color).multiplyScalar(0.5),
@@ -380,7 +474,7 @@ export default function Scene3D({
 
       instrumentGroup.add(group);
     });
-  }, [instruments, surface, selectedInstrumentId, verticalExaggeration, colorMin, colorMax]);
+  }, [instruments, gliders, surface, selectedInstrumentId, verticalExaggeration, colorMin, colorMax]);
 
   return <div ref={mountRef} style={{ width: "100%", height: "100%", position: "relative" }} />;
 }

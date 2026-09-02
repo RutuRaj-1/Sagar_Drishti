@@ -12,11 +12,14 @@ export default function App() {
   // ── API / dataset state ──────────────────────────────────────────────────
   const [apiOnline, setApiOnline] = useState(null);
   const [meta, setMeta] = useState(null);
+  const [volumetricMeta, setVolumetricMeta] = useState(null);
   const [dates, setDates] = useState([]);
 
   // ── Active selection state ───────────────────────────────────────────────
+  const [datasetMode, setDatasetMode] = useState("cmems"); // "cmems" | "volumetric"
   const [variable, setVariable] = useState("tob");
   const [dateIndex, setDateIndex] = useState(600);
+  const [depthIndex, setDepthIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
   // ── Display settings ─────────────────────────────────────────────────────
@@ -28,18 +31,26 @@ export default function App() {
   const [colorScale, setColorScale] = useState("linear");
   const [colorRange, setColorRange] = useState(null);
 
-  // ── CMEMS surface data ───────────────────────────────────────────────────
+  // ── Tier 2 Dynamics & Isosurface state ───────────────────────────────────
+  const [showCurrents, setShowCurrents] = useState(false);
+  const [currentVectors, setCurrentVectors] = useState(null);
+  const [showIsosurface, setShowIsosurface] = useState(false);
+  const [isovalue, setIsovalue] = useState(28.0);
+  const [isosurfaceGrid, setIsosurfaceGrid] = useState(null);
+
+  // ── Surface & Depth slice data ───────────────────────────────────────────
   const [surface, setSurface] = useState(null);
   const [surfaceLoading, setSurfaceLoading] = useState(false);
 
-  // ── Real Argo float state ────────────────────────────────────────────────
+  // ── In-situ platforms: Argo + Gliders ────────────────────────────────────
   const [instruments, setInstruments] = useState([]);
+  const [gliders, setGliders] = useState([]);
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [allTrajectories, setAllTrajectories] = useState([]);
 
-  // ── Map click / CMEMS time-series ───────────────────────────────────────
+  // ── Map click / time-series ─────────────────────────────────────────────
   const [clickedPoint, setClickedPoint] = useState(null);
   const [timeSeries, setTimeSeries] = useState(null);
   const [tsLoading, setTsLoading] = useState(false);
@@ -49,7 +60,18 @@ export default function App() {
 
   const playTimer = useRef(null);
 
-  // ── Bootstrap ────────────────────────────────────────────────────────────
+  // ── Compute active date list based on dataset mode ───────────────────────
+  const activeDates = useMemo(() => {
+    if (datasetMode === "volumetric") {
+      return volumetricMeta?.dates || ["2026-08-31"];
+    }
+    return dates.length ? dates : ["2024-01-01"];
+  }, [datasetMode, volumetricMeta, dates]);
+
+  const safeDateIndex = Math.min(dateIndex, Math.max(0, activeDates.length - 1));
+  const currentDate = activeDates[safeDateIndex] || "2026-08-31";
+
+  // ── Initial Bootstrap ────────────────────────────────────────────────────
   useEffect(() => {
     api.health()
       .then(() => setApiOnline(true))
@@ -62,6 +84,10 @@ export default function App() {
       })
       .catch(console.error);
 
+    api.getVolumetricMeta()
+      .then(setVolumetricMeta)
+      .catch(console.error);
+
     api.getDates()
       .then((d) => {
         setDates(d.dates || []);
@@ -69,62 +95,119 @@ export default function App() {
       })
       .catch(console.error);
 
-    // Load real Argo floats from NC files
     api.getInstruments()
       .then(setInstruments)
       .catch(console.error);
 
-    // Load all float trajectories for map overlay
+    api.getGliders()
+      .then(setGliders)
+      .catch(console.error);
+
     api.getAllTrajectories()
       .then(setAllTrajectories)
       .catch(console.error);
   }, []);
 
-  // ── Auto-select palette when variable changes ────────────────────────────
-  useEffect(() => {
-    setPalette(paletteForVariable(variable));
-    setColorRange(null);
-  }, [variable]);
+  // ── Switch active variable list when dataset mode switches ────────────────
+  const handleDatasetModeChange = (mode) => {
+    setDatasetMode(mode);
+    setDateIndex(0);
+    if (mode === "volumetric") {
+      setVariable("temperature");
+      setPalette("thermal");
+      setColorRange(null);
+    } else {
+      setVariable("tob");
+      setPalette("thermal");
+      setColorRange(null);
+    }
+  };
 
-  // ── Fetch CMEMS surface data whenever variable/date changes ─────────────
+  // ── Fetch surface or depth slice data ────────────────────────────────────
   useEffect(() => {
-    if (!dates.length || !variable) return;
-    const date = dates[dateIndex];
-    if (!date) return;
+    if (!variable) return;
+    const date = currentDate;
 
     setSurfaceLoading(true);
-    api.getSurface(variable, date, 4)
-      .then((s) => {
-        setSurface(s);
-        if (colorRange === null) {
-          setColorRange({ min: s.min_value, max: s.max_value });
-        }
-      })
-      .catch(console.error)
-      .finally(() => setSurfaceLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variable, dateIndex, dates]);
+
+    if (datasetMode === "volumetric") {
+      const depthVal = volumetricMeta?.depth_levels?.[depthIndex] ?? 0;
+      api.getDepthSlice(variable, date, depthVal, 1)
+        .then((s) => {
+          setSurface(s);
+          if (colorRange === null && s) {
+            setColorRange({ min: s.min_value, max: s.max_value });
+          }
+        })
+        .catch(console.error)
+        .finally(() => setSurfaceLoading(false));
+    } else {
+      api.getSurface(variable, date, 4)
+        .then((s) => {
+          setSurface(s);
+          if (colorRange === null && s) {
+            setColorRange({ min: s.min_value, max: s.max_value });
+          }
+        })
+        .catch(console.error)
+        .finally(() => setSurfaceLoading(false));
+    }
+  }, [datasetMode, variable, currentDate, depthIndex, volumetricMeta]);
+
+  // ── Fetch Current Vectors when toggled ───────────────────────────────────
+  useEffect(() => {
+    if (!showCurrents) {
+      setCurrentVectors(null);
+      return;
+    }
+    const date = currentDate;
+    const depthVal = volumetricMeta?.depth_levels?.[depthIndex] ?? 0;
+
+    api.getCurrents(date, depthVal, 2)
+      .then(setCurrentVectors)
+      .catch(console.error);
+  }, [showCurrents, currentDate, depthIndex, volumetricMeta]);
+
+  // ── Fetch Isosurface Grid when toggled ────────────────────────────────────
+  useEffect(() => {
+    if (!showIsosurface) {
+      setIsosurfaceGrid(null);
+      return;
+    }
+    const date = currentDate;
+    api.getIsosurfaceGrid("temperature", date)
+      .then(setIsosurfaceGrid)
+      .catch(console.error);
+  }, [showIsosurface, currentDate]);
 
   // ── Time animation ───────────────────────────────────────────────────────
   useEffect(() => {
-    if (!isPlaying || !dates.length) return;
+    if (!isPlaying || !activeDates.length) return;
     playTimer.current = setInterval(() => {
-      setDateIndex((i) => (i + 1) % dates.length);
+      setDateIndex((i) => (i + 1) % activeDates.length);
     }, 1200);
     return () => clearInterval(playTimer.current);
-  }, [isPlaying, dates]);
+  }, [isPlaying, activeDates]);
 
-  // ── Argo float profile fetch (with CMEMS co-location) ───────────────────
+  // ── In-situ profile fetch (Argo or Glider) ─────────────────────────────────
   useEffect(() => {
     if (!selectedInstrumentId) return;
     setProfileLoading(true);
-    api.getProfile(selectedInstrumentId, variable)
-      .then(setProfile)
-      .catch(console.error)
-      .finally(() => setProfileLoading(false));
+
+    if (selectedInstrumentId.startsWith("GLIDER")) {
+      api.getGliderProfile(selectedInstrumentId)
+        .then(setProfile)
+        .catch(console.error)
+        .finally(() => setProfileLoading(false));
+    } else {
+      api.getProfile(selectedInstrumentId, variable)
+        .then(setProfile)
+        .catch(console.error)
+        .finally(() => setProfileLoading(false));
+    }
   }, [selectedInstrumentId, variable]);
 
-  // ── CMEMS click → time-series fetch ─────────────────────────────────────
+  // ── Map click → time-series fetch ─────────────────────────────────────────
   const handleMapClick = useCallback((lat, lon) => {
     setClickedPoint({ lat, lon });
     setTsLoading(true);
@@ -138,13 +221,20 @@ export default function App() {
     setHoverInfo({ lat, lon, value });
   }, []);
 
-  // ── Derived values ───────────────────────────────────────────────────────
-  const activeVarInfo = useMemo(
-    () => meta?.variables.find((v) => v.name === variable),
-    [meta, variable]
-  );
-  const currentDate = dates[dateIndex] ?? meta?.time_start ?? "";
+  const activeVarInfo = useMemo(() => {
+    if (datasetMode === "volumetric") {
+      return volumetricMeta?.variables?.find((v) => v.name === variable) || {
+        name: variable,
+        long_name: variable,
+        units: "",
+        icon: "🌊",
+      };
+    }
+    return meta?.variables?.find((v) => v.name === variable);
+  }, [meta, volumetricMeta, datasetMode, variable]);
+
   const vc = varColor(variable);
+  const depthLevels = volumetricMeta?.depth_levels || [0, 10, 20, 50, 100, 200, 500, 1000];
 
   return (
     <div className="app-shell">
@@ -152,51 +242,47 @@ export default function App() {
           TOP BAR
           ═══════════════════════════════════════════════════════ */}
       <header className="topbar">
-        {/* Brand */}
         <div className="brand">
           <div className="brand-icon">🌊</div>
           <div className="brand-text">
             <h1>SAGAR<span className="accent">-DRISHTI</span></h1>
-            <div className="subtitle">सागर-दृष्टि · Ocean Vision · SIH 26067 · INCOIS</div>
+            <div className="subtitle">सागर-दृष्टि · 3D Ocean Intelligence · SIH 26067 · INCOIS</div>
           </div>
         </div>
 
-        {/* Tab navigation */}
         <nav className="topbar-tabs">
           <button
             className={`topbar-tab${activeTab === "viz" ? " active" : ""}`}
             onClick={() => setActiveTab("viz")}
           >
-            🌐 Visualization
+            🌐 3D/2D Viewport
           </button>
           <button
             className={`topbar-tab${activeTab === "argo" ? " active" : ""}`}
             onClick={() => setActiveTab("argo")}
           >
-            🔴 Argo Explorer
+            🔴 Argo & Gliders ({instruments.length + gliders.length})
           </button>
           <button
             className={`topbar-tab${activeTab === "analytics" ? " active" : ""}`}
             onClick={() => setActiveTab("analytics")}
           >
-            📊 Analytics
+            📊 Analytics & Anomalies
           </button>
         </nav>
 
-        {/* Right side info */}
         <div className="topbar-right">
           <div className="dataset-badge">
             <div className="dot" />
-            <strong>CMEMS</strong> + <strong style={{ color: "var(--c-chla)" }}>Argo NC</strong>
-            &nbsp;·&nbsp;{dates.length} days
-            &nbsp;·&nbsp;{instruments.length} floats
+            <strong>{datasetMode === "volumetric" ? "4D Volumetric" : "CMEMS Gridded"}</strong>
+            &nbsp;·&nbsp;<strong style={{ color: "var(--c-chla)" }}>91 Floats + 4 Gliders</strong>
           </div>
           <div className={`status-pill${apiOnline === false ? " offline" : ""}`}>
             {apiOnline === null
               ? "Connecting…"
               : apiOnline
               ? "API Online"
-              : "API Offline — start backend"}
+              : "API Offline"}
           </div>
         </div>
       </header>
@@ -217,6 +303,7 @@ export default function App() {
         <main style={{ height: "100%", overflow: "hidden" }}>
           <ArgoExplorer
             instruments={instruments}
+            gliders={gliders}
             allTrajectories={allTrajectories}
             selectedId={selectedInstrumentId}
             onSelect={setSelectedInstrumentId}
@@ -232,16 +319,28 @@ export default function App() {
           ═══════════════════════════════════════════════════════ */}
       {activeTab === "viz" && (
         <main className="main-layout">
-          {/* Left panel — CMEMS controls */}
+          {/* Left panel */}
           <ControlPanel
             meta={meta}
+            volumetricMeta={volumetricMeta}
+            datasetMode={datasetMode}
+            onDatasetModeChange={handleDatasetModeChange}
             variable={variable}
             onVariableChange={(v) => { setIsPlaying(false); setVariable(v); }}
-            dateIndex={dateIndex}
+            dateIndex={safeDateIndex}
             onDateIndexChange={(i) => { setIsPlaying(false); setDateIndex(i); }}
-            dates={dates}
+            dates={activeDates}
             isPlaying={isPlaying}
             onTogglePlay={() => setIsPlaying((p) => !p)}
+            depthIndex={depthIndex}
+            onDepthIndexChange={setDepthIndex}
+            depthLevels={depthLevels}
+            showCurrents={showCurrents}
+            onToggleCurrents={() => setShowCurrents(s => !s)}
+            showIsosurface={showIsosurface}
+            onToggleIsosurface={() => setShowIsosurface(s => !s)}
+            isovalue={isovalue}
+            onIsovalueChange={setIsovalue}
             verticalExaggeration={verticalExaggeration}
             onVerticalExaggerationChange={setVerticalExaggeration}
             layerOpacity={layerOpacity}
@@ -259,15 +358,14 @@ export default function App() {
 
           {/* Center viewport */}
           <div className="viewport">
-            {/* Initial loading overlay — only shown before first data arrives */}
             {surfaceLoading && !surface && (
               <div className="viewport-loading">
                 <div className="loading-spinner" />
-                <div className="loading-text">Loading Copernicus Marine data…</div>
+                <div className="loading-text">Loading Ocean Data…</div>
               </div>
             )}
 
-            {/* 2D choropleth map (always mounted so Leaflet base map shows immediately) */}
+            {/* 2D GIS Map */}
             {viewMode === "map" && (
               <OceanMap
                 surface={surface || null}
@@ -275,32 +373,58 @@ export default function App() {
                 colorMin={colorRange?.min}
                 colorMax={colorRange?.max}
                 colorScale={colorScale}
+                layerOpacity={layerOpacity}
                 onPointClick={handleMapClick}
                 onHover={handleHover}
                 instruments={instruments}
+                gliders={gliders}
+                currentVectors={currentVectors}
+                showCurrents={showCurrents}
                 onSelectInstrument={setSelectedInstrumentId}
                 selectedInstrumentId={selectedInstrumentId}
               />
             )}
 
-            {/* View mode toggle — bottom-right so it doesn't clash with Leaflet zoom */}
+            {/* 3D WebGL Scene */}
+            {viewMode === "3d" && (
+              <Scene3D
+                surface={surface}
+                palette={palette}
+                colorScale={colorScale}
+                colorMin={colorRange?.min}
+                colorMax={colorRange?.max}
+                verticalExaggeration={verticalExaggeration}
+                layerOpacity={layerOpacity}
+                instruments={instruments}
+                gliders={gliders}
+                currentVectors={currentVectors}
+                showCurrents={showCurrents}
+                isosurfaceGrid={isosurfaceGrid}
+                showIsosurface={showIsosurface}
+                isovalue={isovalue}
+                onSelectInstrument={setSelectedInstrumentId}
+                selectedInstrumentId={selectedInstrumentId}
+              />
+            )}
+
+            {/* 2D / 3D Mode Toggle */}
             <div className="view-toggle" style={{ top: "auto", bottom: 14, right: 14 }}>
               <button
                 className={`view-toggle-btn${viewMode === "map" ? " active" : ""}`}
                 onClick={() => setViewMode("map")}
               >
-                🗺️ Map
+                🗺️ 2D Map
               </button>
               <button
                 className={`view-toggle-btn${viewMode === "3d" ? " active" : ""}`}
                 onClick={() => setViewMode("3d")}
               >
-                🌐 3D
+                🌐 3D WebGL
               </button>
             </div>
 
-            {/* Coordinate / hover info — top-left, above Leaflet layers */}
-              {hoverInfo && viewMode === "map" && (
+            {/* Hover Coordinate Info */}
+            {hoverInfo && viewMode === "map" && (
               <div className="coord-info" style={{ zIndex: 500 }}>
                 <strong>{hoverInfo.lat?.toFixed(3)}°N &nbsp; {hoverInfo.lon?.toFixed(3)}°E</strong>
                 &nbsp;·&nbsp;
@@ -311,41 +435,16 @@ export default function App() {
               </div>
             )}
 
-            {/* 3D terrain perspective */}
-            {viewMode === "3d" && surface && (
-              <Scene3D
-                surface={surface}
-                palette={palette}
-                colorScale={colorScale}
-                colorMin={colorRange?.min}
-                colorMax={colorRange?.max}
-                verticalExaggeration={verticalExaggeration}
-                instruments={instruments}
-                onSelectInstrument={setSelectedInstrumentId}
-                selectedInstrumentId={selectedInstrumentId}
-              />
-            )}
-
-            {/* Loading indicator while refreshing */}
-            {surfaceLoading && surface && (
-              <div style={{
-                position: "absolute", top: 10, right: 10,
-                background: "var(--steel-100)", border: "2px solid var(--steel-300)",
-                borderRadius: "var(--radius)", padding: "7px 13px", fontSize: 10.5,
-                color: "var(--steel-600)",
-                display: "flex", alignItems: "center", gap: 8,
-                boxShadow: "var(--shadow-hard-sm)"
-              }}>
-                <div className="loading-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-                Updating CMEMS…
-              </div>
-            )}
-
-            {/* Bottom colorbar legend */}
+            {/* Colorbar legend */}
             {activeVarInfo && colorRange && (
               <div className="legend">
                 <div className="legend-title">
                   <span style={{ color: vc }}>{activeVarInfo.icon} {activeVarInfo.long_name}</span>
+                  {datasetMode === "volumetric" && (
+                    <span style={{ color: "#00d4f0", marginLeft: 8, fontWeight: 700 }}>
+                      @{depthLevels[depthIndex]}m depth
+                    </span>
+                  )}
                   &nbsp;·&nbsp;
                   <span style={{ color: "var(--muted)", fontFamily: "var(--font-mono)", fontSize: 10 }}>{currentDate}</span>
                 </div>
@@ -361,17 +460,17 @@ export default function App() {
               </div>
             )}
 
-            {/* Bottom hint */}
             <div className="hint-overlay">
               {viewMode === "map"
-                ? "Hover for CMEMS values · Click for time-series · Click 🔴 for Argo profiles"
-                : "Drag to rotate · Scroll to zoom · Click 🔴 markers for Argo depth profiles"}
+                ? "Hover for ocean values · Click for time-series · Click markers for depth validation"
+                : "Drag to rotate · Scroll to zoom · Toggle Marching Cubes Isosurface or Current Vectors in sidebar"}
             </div>
           </div>
 
-          {/* Right panel — Argo floats + time-series */}
+          {/* Right panel: Dual-Line Model vs Observation Chart */}
           <ProfilePanel
             instruments={instruments}
+            gliders={gliders}
             selectedId={selectedInstrumentId}
             onSelect={setSelectedInstrumentId}
             profile={profile}
@@ -387,30 +486,34 @@ export default function App() {
 }
 
 /* ═══════════════════════════════════════════════════════
-   Argo Explorer Tab — dedicated float exploration view
+   Argo & Gliders Explorer Tab
    ═══════════════════════════════════════════════════════ */
-function ArgoExplorer({ instruments, allTrajectories, selectedId, onSelect, profile, profileLoading, variable }) {
-  // Compute summary stats
+function ArgoExplorer({ instruments, gliders, allTrajectories, selectedId, onSelect, profile, profileLoading, variable }) {
+  const allList = [
+    ...instruments.map(i => ({ ...i, kind: "argo" })),
+    ...gliders.map(g => ({ ...g, kind: "glider" })),
+  ];
   const bgcFloats = instruments.filter(i => i.bgc_params?.length > 0);
-  const allParams = [...new Set(instruments.flatMap(i => i.bgc_params || []))];
 
   return (
     <div className="argo-layout">
-      {/* Sidebar */}
       <div className="argo-sidebar">
         <div className="argo-header-card">
-          <div className="argo-title">🔴 Argo Float Explorer</div>
+          <div className="argo-title">🔴 In-Situ Instrument Explorer</div>
           <div className="argo-subtitle">
-            Real in-situ profiles · Coriolis DataSelection Export<br />
-            Jun 2025 – Aug 2026 · Bay of Bengal & Arabian Sea
+            91 Coriolis Argo Floats + 4 Autonomous Gliders<br />
+            Indian Ocean Domain (5°N–23°N, 60°E–97°E)
           </div>
         </div>
 
-        {/* Summary stats */}
         <div className="float-stat-row">
           <div className="float-stat">
             <span className="float-stat-value">{instruments.length}</span>
-            <div className="float-stat-label">Total Floats</div>
+            <div className="float-stat-label">Argo Floats</div>
+          </div>
+          <div className="float-stat">
+            <span className="float-stat-value" style={{ color: "#00d4f0" }}>{gliders.length}</span>
+            <div className="float-stat-label">Gliders</div>
           </div>
           <div className="float-stat">
             <span className="float-stat-value" style={{ color: "var(--c-doxy)" }}>{bgcFloats.length}</span>
@@ -420,95 +523,56 @@ function ArgoExplorer({ instruments, allTrajectories, selectedId, onSelect, prof
             <span className="float-stat-value" style={{ color: "var(--c-chla)" }}>{allTrajectories.length}</span>
             <div className="float-stat-label">Trajectories</div>
           </div>
-          <div className="float-stat">
-            <span className="float-stat-value" style={{ color: "var(--c-ssh)" }}>{allParams.length}</span>
-            <div className="float-stat-label">Param Types</div>
-          </div>
         </div>
 
-        {/* Available BGC parameters */}
         <div className="panel-section">
-          <div className="panel-section-title"><span className="icon">🔬</span> Available Parameters</div>
-          <div className="param-badges" style={{ gap: 5 }}>
-            {["TEMP","PSAL","DOXY","CHLA","NITRATE","PH_IN_SITU_TOTAL","BBP700"].map((p) => {
-              const count = instruments.filter(i => i.available_params?.includes(p)).length;
-              const colors = { TEMP:"#ff6b6b",PSAL:"#4ecdc4",DOXY:"#55efc4",CHLA:"#fdcb6e",NITRATE:"#a29bfe",PH_IN_SITU_TOTAL:"#fd79a8",BBP700:"#e17055" };
-              const c = colors[p] || "#00d4f0";
-              if (count === 0) return null;
+          <div className="panel-section-title"><span className="icon">📡</span> Select Platform</div>
+          <ul className="instrument-list">
+            {allList.map((inst) => {
+              const isGlider = inst.kind === "glider";
               return (
-                <div key={p} style={{
-                  padding: "5px 10px", borderRadius: 7, fontSize: 10,
-                  background: `${c}15`, border: `1px solid ${c}33`,
-                  color: c, fontWeight: 600, fontFamily: "var(--font-mono)",
-                  display: "flex", alignItems: "center", gap: 5
-                }}>
-                  {p.replace("_IN_SITU_TOTAL", "")}
-                  <span style={{ color: "var(--muted)", fontFamily: "var(--font-body)", fontWeight: 400 }}>
-                    ×{count}
-                  </span>
-                </div>
+                <li
+                  key={inst.instrument_id}
+                  className={inst.instrument_id === selectedId ? "active" : ""}
+                  onClick={() => onSelect(inst.instrument_id)}
+                >
+                  <div className="inst-header">
+                    <span className={`tag ${isGlider ? "bgc" : "argo"}`}>
+                      {isGlider ? "GLIDER" : "ARGO"}
+                    </span>
+                    {inst.bgc_params?.length > 0 && <span className="tag bgc">BGC</span>}
+                    <span className="inst-id">{inst.platform_number || inst.instrument_id}</span>
+                  </div>
+                  <div className="inst-meta">
+                    {inst.latitude?.toFixed(2)}°N, {inst.longitude?.toFixed(2)}°E
+                    &nbsp;·&nbsp;{inst.timestamp?.slice(0, 10)}
+                  </div>
+                </li>
               );
             })}
-          </div>
-        </div>
-
-        {/* Float list */}
-        <div className="panel-section">
-          <div className="panel-section-title"><span className="icon">📡</span> Select Float</div>
-          <ul className="instrument-list">
-            {instruments.map((inst) => (
-              <li
-                key={inst.instrument_id}
-                className={inst.instrument_id === selectedId ? "active" : ""}
-                onClick={() => onSelect(inst.instrument_id)}
-              >
-                <div className="inst-header">
-                  <span className="tag argo">ARGO</span>
-                  {inst.bgc_params?.length > 0 && <span className="tag bgc">BGC</span>}
-                  <span className="inst-id">{inst.platform_number}</span>
-                </div>
-                <div className="inst-meta">
-                  {inst.latitude?.toFixed(2)}°N, {inst.longitude?.toFixed(2)}°E
-                  &nbsp;·&nbsp;{inst.timestamp?.slice(0, 10)}
-                </div>
-                <div className="param-badges">
-                  {(inst.bgc_params || []).map((p) => {
-                    const colors = { DOXY:"#55efc4",CHLA:"#fdcb6e",NITRATE:"#a29bfe",PH_IN_SITU_TOTAL:"#fd79a8",BBP700:"#e17055" };
-                    const c = colors[p] || "var(--accent)";
-                    return <span key={p} className="param-badge" style={{ color: c, borderColor: `${c}33` }}>{p.replace("_IN_SITU_TOTAL","")}</span>;
-                  })}
-                </div>
-              </li>
-            ))}
           </ul>
         </div>
       </div>
 
-      {/* Main content */}
       <div className="argo-main">
-        {!selectedId && (
+        {!selectedId ? (
           <div style={{
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             height: "60%", color: "var(--steel-500)", textAlign: "center", gap: 16
           }}>
             <div style={{ fontSize: 48, opacity: 0.35 }}>🔴</div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: "var(--steel-700)", letterSpacing: "-0.02em" }}>
-              Select a Float
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: "var(--steel-700)" }}>
+              Select an In-Situ Platform
             </div>
             <div style={{ fontSize: 12, maxWidth: 360, lineHeight: 1.7, color: "var(--steel-500)" }}>
-              Choose an Argo float from the sidebar to view its multi-parameter depth profile,
-              T-S diagram, and CMEMS model comparison.
-            </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-              <span className="cmems-badge">🛰️ CMEMS Model Fields</span>
-              <span className="argo-badge">🔴 Real Argo Profiles</span>
+              Choose an Argo float or Glider from the list to view its multi-parameter depth profile,
+              validation statistics against numerical models, and T-S water mass diagram.
             </div>
           </div>
-        )}
-
-        {selectedId && (
+        ) : (
           <ProfilePanel
             instruments={instruments}
+            gliders={gliders}
             selectedId={selectedId}
             onSelect={onSelect}
             profile={profile}

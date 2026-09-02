@@ -18,6 +18,10 @@ NC_PATH = os.path.join(DATA_DIR, "cmems_Copernicus_Marine_Ocean_Dataset.nc")
 # 91 argo-profiles-*.nc + 92 argo-trajectory-*.nc covering Jun 2025 – Aug 2026
 ARGO_NC_DIR = os.path.join(DATA_DIR, "DataSelection_20260831_164219_15508736")
 
+# ── 4D Volumetric Sample NetCDF (depth layers, u/v currents) ────────────────
+SAMPLE_NC_PATH = os.path.join(DATA_DIR, "ocean_model_sample.nc")
+GLIDER_JSON_PATH = os.path.join(DATA_DIR, "glider_tracks_sample.json")
+
 # ── Copernicus CMEMS variable catalogue ───────────────────────────────────────
 # Maps nc_name → display metadata for the API and the frontend color system.
 VARIABLE_CATALOGUE = {

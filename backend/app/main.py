@@ -16,7 +16,7 @@ Docs (auto-generated Swagger):
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import variables, model, instruments, analytics
+from app.routers import variables, model, instruments, analytics, volumetric, gliders
 
 app = FastAPI(
     title="SAGAR-DRISHTI Ocean Analytics API",
@@ -24,8 +24,8 @@ app = FastAPI(
         "सागर-दृष्टि ('Ocean Vision') — REST API for the SAGAR-DRISHTI 3D Ocean Data "
         "Visualization & Analytics Platform (SIH 26067, INCOIS). "
         "Serves real Copernicus Marine Ocean Dataset (2022–2026, Bay of Bengal + Arabian Sea) "
-        "surface slices, time series, spatial statistics, anomaly fields, and Argo/Glider "
-        "instrument profiles to the browser-native WebGL frontend."
+        "surface slices, 4D volumetric depth slices, current vectors, time series, spatial statistics, "
+        "anomaly fields, and Argo/Glider instrument profiles to the browser-native WebGL frontend."
     ),
     version="2.0.0",
     contact={"name": "SAGAR-DRISHTI Team", "url": "https://incois.gov.in"},
@@ -43,7 +43,9 @@ app.add_middleware(
 
 app.include_router(variables.router)
 app.include_router(model.router)
+app.include_router(volumetric.router)
 app.include_router(instruments.router)
+app.include_router(gliders.router)
 app.include_router(analytics.router)
 
 

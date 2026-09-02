@@ -38,6 +38,18 @@ def get_trend(
     values = np.array([v if v is not None else np.nan for v in ts["values"]])
     n = len(values)
     valid_mask = ~np.isnan(values)
+    n_valid = int(valid_mask.sum())
+
+    # If point is on land / outside model domain → all NaN → 404 with helpful message
+    if n_valid == 0:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"No valid data at lat={lat}, lon={lon} for '{variable}'. "
+                "This grid cell is land or outside the model domain. "
+                "Try clicking a nearby ocean point."
+            ),
+        )
 
     # Rolling mean
     rolling = []
@@ -55,7 +67,7 @@ def get_trend(
     valid_y = values[valid_mask]
     slope = intercept = None
     trend_line = [None] * n
-    if len(valid_x) > 2:
+    if n_valid > 2:
         coeffs = np.polyfit(valid_x, valid_y, 1)
         slope = float(coeffs[0])  # units per day
         intercept = float(coeffs[1])
@@ -64,13 +76,15 @@ def get_trend(
     else:
         slope_per_year = None
 
+    unit = ts.get("unit", "") or ""
     return {
         **ts,
         "rolling_mean": rolling,
         "trend_line": trend_line,
         "slope_per_day": slope,
         "slope_per_year": slope_per_year,
-        "trend_unit": ts["unit"] + "/year",
+        "trend_unit": unit + "/year",
+        "n_valid": n_valid,
     }
 
 
