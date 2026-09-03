@@ -73,11 +73,11 @@ The platform has four main views:
 | **FastAPI** | `0.115` | REST API framework, OpenAPI docs, async routing |
 | **Uvicorn** | `0.30` | ASGI server |
 | **xarray** | latest | NetCDF-4 dataset slicing and nearest-coordinate selection |
-| **netCDF4** | latest | Low-level HDF5/NetCDF read engine |
-| **NumPy** | latest | Numerical operations, gradient computation for `sivelo` |
-| **SciPy** | latest | Interpolation, OLS regression, Pearson correlation |
-| **pandas** | latest | Time series manipulation and date parsing |
-| **Pydantic** | `2.9` | Response model validation and schema generation |
+| **netCDF4** | `1.7.4` | Low-level HDF5/NetCDF read engine |
+| **NumPy** | `2.3.5` | Numerical operations, gradient computation for `sivelo` |
+| **SciPy** | `1.16.1` | Interpolation, OLS regression, Pearson correlation |
+| **pandas** | `2.3.3` | Time series manipulation and date parsing |
+| **Pydantic** | `2.13.5` | Response model validation and schema generation |
 
 ### Frontend
 
@@ -295,7 +295,7 @@ This guarantees a value of `28.5°C` looks identical on the 2D map and in the 3D
 
 ### Prerequisites
 
-- Python `3.10+`
+- Python `3.11+` (Python 3.14 is supported)
 - Node.js `18+` and npm
 - A WebGL 2.0 capable browser (Chrome, Edge, Firefox)
 - 4 GB+ free RAM for NetCDF in-memory caching
