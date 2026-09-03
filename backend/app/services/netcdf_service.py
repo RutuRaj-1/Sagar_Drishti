@@ -140,7 +140,7 @@ def get_surface(variable: str, date: str, downsample: int = 4) -> Optional[dict]
         return _cache[key]
 
     ds = _load_dataset()
-    if variable not in ds.data_vars:
+    if variable not in ds.data_vars and variable != "sivelo":
         return None
 
     # Handle sivelo by deriving physical surface drift velocity from zos
@@ -212,7 +212,7 @@ def get_timeseries(variable: str, lat: float, lon: float) -> Optional[dict]:
         return _cache[key]
 
     ds = _load_dataset()
-    if variable not in ds.data_vars:
+    if variable not in ds.data_vars and variable != "sivelo":
         return None
 
     # Handle sivelo by deriving physical surface drift velocity time-series
@@ -298,7 +298,7 @@ def get_stats(variable: str, date: str) -> Optional[dict]:
         return _cache[key]
 
     ds = _load_dataset()
-    if variable not in ds.data_vars:
+    if variable not in ds.data_vars and variable != "sivelo":
         return None
 
     # Handle sivelo by deriving physical stats from drift layer

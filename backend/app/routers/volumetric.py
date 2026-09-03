@@ -153,7 +153,7 @@ def get_volume_for_isosurface(
     Marching Cubes isosurface extraction in Three.js WebGL.
     Depth range restricted to 0–max_depth for manageable payload.
     """
-    result = volumetric_service.get_volume_for_isosurface(
+    result = volumetric_service.get_isosurface_grid(
         variable, date, depth_range=(0.0, max_depth)
     )
     if result is None:

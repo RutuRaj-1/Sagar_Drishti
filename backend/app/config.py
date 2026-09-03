@@ -19,6 +19,17 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
+# Comma-separated browser origins for deployments. The local Vite origins keep
+# the development setup working without allowing arbitrary credentialed origins.
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "SAGAR_ALLOWED_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    if origin.strip()
+]
+
 # ── Real Copernicus Marine Dataset (CMEMS global model, 5.8 GB) ─────────────
 NC_PATH = os.path.join(DATA_DIR, "cmems_Copernicus_Marine_Ocean_Dataset.nc")
 

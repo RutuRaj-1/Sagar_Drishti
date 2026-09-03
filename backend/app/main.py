@@ -16,6 +16,7 @@ Docs (auto-generated Swagger):
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import config
 from app.routers import variables, model, instruments, analytics, volumetric, gliders
 
 app = FastAPI(
@@ -32,10 +33,9 @@ app = FastAPI(
     license_info={"name": "Data: E.U. Copernicus Marine Service (CMEMS)"},
 )
 
-# NFR §3.3.4: wide-open CORS for hackathon demo — restrict in production.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

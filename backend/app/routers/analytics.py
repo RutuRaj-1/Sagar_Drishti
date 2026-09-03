@@ -113,7 +113,10 @@ def get_correlation(
     v2c = v2[mask]
     dates_clean = [d for d, m in zip(dates, mask) if m]
 
-    r = float(np.corrcoef(v1c, v2c)[0, 1]) if len(v1c) > 2 else 0.0
+    if len(v1c) > 2 and np.std(v1c) > 0 and np.std(v2c) > 0:
+        r = float(np.corrcoef(v1c, v2c)[0, 1])
+    else:
+        r = 0.0
 
     # Subsample scatter data to 200 points max for JSON efficiency
     step = max(1, len(v1c) // 200)
