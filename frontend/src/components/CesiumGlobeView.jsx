@@ -175,6 +175,26 @@ export default function CesiumGlobeView({
       ctrl.minimumZoomDistance = 800000;
       ctrl.maximumZoomDistance = 35000000;
 
+      // Regional Domain Bounding Box in glowing cyan (matching 2D Leaflet DOMAIN)
+      viewer.entities.add({
+        name: "Regional Domain Bounding Box",
+        polyline: {
+          positions: Cesium.Cartesian3.fromDegreesArray([
+            40.0, -20.0,
+            105.0, -20.0,
+            105.0, 32.0,
+            40.0, 32.0,
+            40.0, -20.0,
+          ]),
+          width: 2.5,
+          material: new Cesium.PolylineGlowMaterialProperty({
+            glowPower: 0.2,
+            color: Cesium.Color.fromCssColorString("#00d4f0"),
+          }),
+          clampToGround: true,
+        },
+      });
+
       // Click handler for instruments
       clickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
       clickHandler.setInputAction((movement) => {
@@ -217,6 +237,21 @@ export default function CesiumGlobeView({
       orientation: {
         heading: 0,
         pitch: Cesium.Math.toRadians(-90),
+        roll: 0,
+      },
+      duration: 1.2,
+    });
+  };
+
+  // Focus Indian Ocean regional domain
+  const handleFocusRegion = () => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(75.0, 8.0, 6500000),
+      orientation: {
+        heading: 0,
+        pitch: Cesium.Math.toRadians(-72),
         roll: 0,
       },
       duration: 1.2,
@@ -492,9 +527,24 @@ export default function CesiumGlobeView({
             cursor: "pointer",
             marginLeft: 4,
           }}
-          title="Reset Earth to Center"
+          title="Reset View to Global Earth"
         >
-          🎯 Re-Center
+          🎯 Global
+        </button>
+        <button
+          onClick={handleFocusRegion}
+          style={{
+            background: "rgba(255,255,255,0.06)",
+            color: "#e0e8ff",
+            border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: 5,
+            padding: "4px 8px",
+            fontSize: 11,
+            cursor: "pointer",
+          }}
+          title="Focus on Indian Ocean Regional Domain"
+        >
+          🇮🇳 Indian Ocean
         </button>
       </div>
     </div>

@@ -11,6 +11,7 @@ import StatsDashboard from "./components/StatsDashboard.jsx";
 import InstrumentSummaryPanel from "./components/InstrumentSummaryPanel.jsx";
 import DatasetHealthDashboard from "./components/DatasetHealthDashboard.jsx";
 import HFRadarRamaExplorer from "./components/HFRadarRamaExplorer.jsx";
+import DepthReadingsPanel from "./components/DepthReadingsPanel.jsx";
 // Static import so Vite bundles Cesium in the same chunk (avoids CJS interop issues with lazy())
 import CesiumGlobeView from "./components/CesiumGlobeView.jsx";
 
@@ -508,9 +509,8 @@ export default function App() {
               />
             )}
 
-            {/* 3D Regional View — Cesium full-Earth with brown/green land & blue water */}
-            {/* Tasks 3 & 4: Complete land + water globally in 3D */}
-            {viewMode === "3d" && (
+            {/* 3D Regional View — Cesium full-Earth with brown/green land & blue water (Tasks 3 & 4) */}
+            {(viewMode === "regional" || viewMode === "3d") && (
               <CesiumRegionalView
                 surface={surface}
                 palette={palette}
@@ -527,6 +527,42 @@ export default function App() {
                 onSelectInstrument={setSelectedInstrumentId}
                 selectedInstrumentId={selectedInstrumentId}
               />
+            )}
+
+            {/* 3D WebGL View — Three.js bathymetric terrain with Marching Cubes & DepthReadingsPanel */}
+            {viewMode === "webgl" && (
+              <>
+                <Scene3D
+                  surface={surface}
+                  palette={palette}
+                  colorScale={colorScale}
+                  colorMin={colorRange?.min}
+                  colorMax={colorRange?.max}
+                  verticalExaggeration={verticalExaggeration}
+                  layerOpacity={layerOpacity}
+                  instruments={instruments}
+                  gliders={gliders}
+                  currentVectors={currentVectors}
+                  showCurrents={showCurrents}
+                  isosurfaceGrid={isosurfaceGrid}
+                  showIsosurface={showIsosurface}
+                  isovalue={isovalue}
+                  onSelectInstrument={setSelectedInstrumentId}
+                  selectedInstrumentId={selectedInstrumentId}
+                />
+                {datasetMode === "volumetric" && (
+                  <DepthReadingsPanel
+                    surface={surface}
+                    volumetricMeta={volumetricMeta}
+                    depthIndex={depthIndex}
+                    depthLevels={depthLevels}
+                    palette={palette}
+                    colorScale={colorScale}
+                    colorMin={colorRange?.min}
+                    colorMax={colorRange?.max}
+                  />
+                )}
+              </>
             )}
 
             {/* Cesium 3D Globe View (Google Earth-style) */}
@@ -550,7 +586,7 @@ export default function App() {
             )}
 
 
-            {/* 2D / 3D / Globe Mode Toggle */}
+            {/* 2D / Globe / 3D Regional / 3D WebGL View Toggles */}
             <div className="view-toggle" style={{ top: "auto", bottom: 14, right: 14 }}>
               <button
                 className={`view-toggle-btn${viewMode === "map" ? " active" : ""}`}
@@ -565,10 +601,16 @@ export default function App() {
                 🌍 Globe
               </button>
               <button
-                className={`view-toggle-btn${viewMode === "3d" ? " active" : ""}`}
-                onClick={() => setViewMode("3d")}
+                className={`view-toggle-btn${viewMode === "regional" || viewMode === "3d" ? " active" : ""}`}
+                onClick={() => setViewMode("regional")}
               >
-                🏔️ Regional
+                🏔️ 3D Regional
+              </button>
+              <button
+                className={`view-toggle-btn${viewMode === "webgl" ? " active" : ""}`}
+                onClick={() => setViewMode("webgl")}
+              >
+                🧊 3D WebGL
               </button>
             </div>
 

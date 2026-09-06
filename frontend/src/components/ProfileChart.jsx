@@ -8,6 +8,7 @@ import {
 import { ARGO_PARAM_COLORS, varColor } from "../utils/colormap.js";
 import { api } from "../api.js";
 import VariableExplanationCard from "./VariableExplanationCard.jsx";
+import DepthReadingsPanel from "./DepthReadingsPanel.jsx";
 
 /**
  * ProfilePanel — Depth Profile & Model Co-Location Chart
@@ -217,6 +218,12 @@ export default function ProfilePanel({
   hideHeaderCard = false,
   colorRange,
   surface,
+  datasetMode,
+  volumetricMeta,
+  depthIndex,
+  depthLevels,
+  palette,
+  colorScale,
 }) {
   const [profileTab, setProfileTab] = useState("depth"); // "depth" | "ts"
   const [tsData, setTsData] = useState(null);
@@ -333,6 +340,20 @@ export default function ProfilePanel({
 
   return (
     <div className="panel" style={{ background: "transparent", border: "none", padding: 0 }}>
+
+      {/* ── 0. Depth Level Readings (Docked in Right Panel for 4D Volumetric Mode) ───────── */}
+      {datasetMode === "volumetric" && (
+        <DepthReadingsPanel
+          surface={surface}
+          volumetricMeta={volumetricMeta}
+          depthIndex={depthIndex}
+          depthLevels={depthLevels}
+          palette={palette}
+          colorScale={colorScale}
+          colorMin={colorRange?.min}
+          colorMax={colorRange?.max}
+        />
+      )}
 
       {/* ── 1. CMEMS Time Series at Point (ONLY visible when variable is Temperature) ───────── */}
       {timeSeries && isTempVar && (
