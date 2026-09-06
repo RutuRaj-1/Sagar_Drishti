@@ -1,32 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { viteStaticCopy } from 'vite-plugin-static-copy';
-import path from 'path';
+
+// Cesium static assets are pre-copied to public/cesium/ so Vite serves them
+// in both dev and prod. The CESIUM_BASE_URL global points there.
 
 export default defineConfig({
   plugins: [
     react(),
-    // Copy Cesium assets to build output
-    viteStaticCopy({
-      targets: [
-        {
-          src: path.join('node_modules', 'cesium', 'Build', 'Cesium', 'Workers'),
-          dest: 'cesium'
-        },
-        {
-          src: path.join('node_modules', 'cesium', 'Build', 'Cesium', 'ThirdParty'),
-          dest: 'cesium'
-        },
-        {
-          src: path.join('node_modules', 'cesium', 'Build', 'Cesium', 'Assets'),
-          dest: 'cesium'
-        },
-        {
-          src: path.join('node_modules', 'cesium', 'Build', 'Cesium', 'Widgets'),
-          dest: 'cesium'
-        }
-      ]
-    })
   ],
   server: {
     host: true,
@@ -40,7 +20,12 @@ export default defineConfig({
     },
   },
   define: {
-    // Define Cesium base URL for asset loading
-    CESIUM_BASE_URL: JSON.stringify('/cesium')
-  }
+    // Cesium assets are served from /cesium/ by Vite's public folder
+    CESIUM_BASE_URL: JSON.stringify('/cesium'),
+    // Cesium uses global – make it available in ESM context
+    global: 'window',
+  },
+  build: {
+    chunkSizeWarningLimit: 10000,
+  },
 });

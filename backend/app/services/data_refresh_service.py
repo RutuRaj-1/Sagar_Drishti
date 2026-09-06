@@ -53,8 +53,9 @@ def _retry_execute(fn, task_name: str):
             logger.warning(
                 f"[{task_name}] Attempt {attempt}/{MAX_RETRIES} failed: {e}. Retrying in {wait_time}s..."
             )
-            time.sleep(wait_time)
-    raise last_err
+    if last_err is not None:
+        raise last_err
+    raise RuntimeError(f"[{task_name}] Execution failed after {MAX_RETRIES} attempts.")
 
 
 class DataRefreshService:

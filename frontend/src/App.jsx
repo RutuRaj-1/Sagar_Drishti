@@ -1,18 +1,19 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { api } from "./api.js";
 import { paletteForVariable, paletteGradientCss, varColor, colorForValue, PALETTES } from "./utils/colormap.js";
 
 import ControlPanel from "./components/ControlPanel.jsx";
 import OceanMap from "./components/OceanMap.jsx";
-import Scene3D from "./components/Scene3D.jsx";
+import Scene3D from "./components/Scene3D.jsx"; // kept for backward-compat
+import CesiumRegionalView from "./components/CesiumRegionalView.jsx";
 import ProfilePanel from "./components/ProfileChart.jsx";
 import StatsDashboard from "./components/StatsDashboard.jsx";
 import InstrumentSummaryPanel from "./components/InstrumentSummaryPanel.jsx";
 import DatasetHealthDashboard from "./components/DatasetHealthDashboard.jsx";
 import HFRadarRamaExplorer from "./components/HFRadarRamaExplorer.jsx";
+// Static import so Vite bundles Cesium in the same chunk (avoids CJS interop issues with lazy())
+import CesiumGlobeView from "./components/CesiumGlobeView.jsx";
 
-// Lazy load Cesium Globe View (only loads when user enters Globe mode)
-const CesiumGlobeView = lazy(() => import("./components/CesiumGlobeView.jsx"));
 
 export default function App() {
   // ── API / dataset state ──────────────────────────────────────────────────
@@ -507,23 +508,22 @@ export default function App() {
               />
             )}
 
-            {/* 3D WebGL Scene (Regional Three.js) */}
+            {/* 3D Regional View — Cesium full-Earth with brown/green land & blue water */}
+            {/* Tasks 3 & 4: Complete land + water globally in 3D */}
             {viewMode === "3d" && (
-              <Scene3D
+              <CesiumRegionalView
                 surface={surface}
                 palette={palette}
                 colorScale={colorScale}
                 colorMin={colorRange?.min}
                 colorMax={colorRange?.max}
-                verticalExaggeration={verticalExaggeration}
                 layerOpacity={layerOpacity}
                 instruments={instruments}
                 gliders={gliders}
+                hfRadarStations={hfRadarStations}
+                ramaBuoys={ramaBuoys}
                 currentVectors={currentVectors}
                 showCurrents={showCurrents}
-                isosurfaceGrid={isosurfaceGrid}
-                showIsosurface={showIsosurface}
-                isovalue={isovalue}
                 onSelectInstrument={setSelectedInstrumentId}
                 selectedInstrumentId={selectedInstrumentId}
               />
@@ -531,30 +531,24 @@ export default function App() {
 
             {/* Cesium 3D Globe View (Google Earth-style) */}
             {viewMode === "globe" && (
-              <Suspense fallback={
-                <div className="viewport-loading">
-                  <div className="loading-spinner" />
-                  <div className="loading-text">Loading Earth Globe...</div>
-                </div>
-              }>
-                <CesiumGlobeView
-                  surface={surface}
-                  palette={palette}
-                  colorScale={colorScale}
-                  colorMin={colorRange?.min}
-                  colorMax={colorRange?.max}
-                  layerOpacity={layerOpacity}
-                  instruments={instruments}
-                  gliders={gliders}
-                  hfRadarStations={hfRadarStations}
-                  ramaBuoys={ramaBuoys}
-                  currentVectors={currentVectors}
-                  showCurrents={showCurrents}
-                  onSelectInstrument={setSelectedInstrumentId}
-                  selectedInstrumentId={selectedInstrumentId}
-                />
-              </Suspense>
+              <CesiumGlobeView
+                surface={surface}
+                palette={palette}
+                colorScale={colorScale}
+                colorMin={colorRange?.min}
+                colorMax={colorRange?.max}
+                layerOpacity={layerOpacity}
+                instruments={instruments}
+                gliders={gliders}
+                hfRadarStations={hfRadarStations}
+                ramaBuoys={ramaBuoys}
+                currentVectors={currentVectors}
+                showCurrents={showCurrents}
+                onSelectInstrument={setSelectedInstrumentId}
+                selectedInstrumentId={selectedInstrumentId}
+              />
             )}
+
 
             {/* 2D / 3D / Globe Mode Toggle */}
             <div className="view-toggle" style={{ top: "auto", bottom: 14, right: 14 }}>
