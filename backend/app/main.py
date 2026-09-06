@@ -13,24 +13,56 @@ Run:
 Docs (auto-generated Swagger):
     http://localhost:8000/docs
 """
+import threading
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import config
-from app.routers import variables, model, instruments, analytics, volumetric, gliders
+from app.scheduler import start_scheduler, stop_scheduler
+from app.services.data_refresh_service import DataRefreshService
+from app.routers import (
+    variables,
+    model,
+    instruments,
+    analytics,
+    volumetric,
+    gliders,
+    hfradar,
+    buoys,
+    datasets,
+)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Start APScheduler and trigger background data refresh
+    start_scheduler()
+    # Run initial refresh in non-blocking thread
+    refresh_thread = threading.Thread(
+        target=DataRefreshService.refresh_all,
+        daemon=True,
+        name="initial-ocean-refresh"
+    )
+    refresh_thread.start()
+    yield
+    # Shutdown: Cleanly stop background scheduler
+    stop_scheduler()
+
 
 app = FastAPI(
     title="SAGAR-DRISHTI Ocean Analytics API",
+    lifespan=lifespan,
     description=(
         "सागर-दृष्टि ('Ocean Vision') — REST API for the SAGAR-DRISHTI 3D Ocean Data "
         "Visualization & Analytics Platform (SIH 26067, INCOIS). "
         "Serves real Copernicus Marine Ocean Dataset (2022–2026, Bay of Bengal + Arabian Sea) "
         "surface slices, 4D volumetric depth slices, current vectors, time series, spatial statistics, "
-        "anomaly fields, and Argo/Glider instrument profiles to the browser-native WebGL frontend."
+        "anomaly fields, Argo/Glider instrument profiles, INCOIS HF Radar currents, and RAMA Moored Buoy observations."
     ),
     version="2.0.0",
     contact={"name": "SAGAR-DRISHTI Team", "url": "https://incois.gov.in"},
-    license_info={"name": "Data: E.U. Copernicus Marine Service (CMEMS)"},
+    license_info={"name": "Data: E.U. Copernicus Marine Service (CMEMS) + INCOIS / NOAA"},
 )
 
 app.add_middleware(
@@ -46,19 +78,30 @@ app.include_router(model.router)
 app.include_router(volumetric.router)
 app.include_router(instruments.router)
 app.include_router(gliders.router)
+app.include_router(hfradar.router)
+app.include_router(buoys.router)
 app.include_router(analytics.router)
+app.include_router(datasets.router)
 
 
 @app.get("/api/health", tags=["health"])
 def health():
+    from app.services.dataset_registry import registry
+    statuses = registry.get_all_status()
+    cmems = statuses.get("cmems_surface", {})
+    t_start = cmems.get("coverage_start", "2022-06-01")
+    t_end = cmems.get("latest", "2026-09-06")[:10] if cmems.get("latest") else "2026-09-06"
     return {
         "status": "ok",
         "service": "sagar-drishti-api",
         "version": "2.0.0",
-        "dataset": "Copernicus Marine — cmems_mod_glo_phy_anfc_merged-uv_PT1H-i",
+        "dataset": "Copernicus Marine + Coriolis GDAC + IOOS Gliders + INCOIS HF Radar + RAMA Buoys",
         "domain": "Bay of Bengal + Arabian Sea (5°N–22°N, 68°E–95°E)",
-        "time_range": "2022-06-01 to 2026-08-31",
+        "time_range": f"{t_start} to {t_end}",
+        "datasets_count": len(statuses),
+        "live_datasets": sum(1 for s in statuses.values() if s.get("status") == "live"),
     }
+
 
 
 @app.get("/", tags=["health"])

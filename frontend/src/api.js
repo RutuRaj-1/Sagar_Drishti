@@ -18,8 +18,13 @@ async function getJSON(path) {
 }
 
 export const api = {
-  // ── Health & dataset metadata ──────────────────────────────────────────────
+  // ── Health, dataset status & metadata ─────────────────────────────────────
   health: () => getJSON("/api/health"),
+  getDatasetStatus: () => getJSON("/api/datasets/status"),
+  triggerRefresh: (datasetId) =>
+    fetch(`${BASE}/api/datasets/refresh${datasetId ? `?dataset=${datasetId}` : ""}`, {
+      method: "POST",
+    }).then((r) => r.json()),
   getVariables: () => getJSON("/api/variables"),
   getDates: () => getJSON("/api/variables/dates"),
 
@@ -88,6 +93,16 @@ export const api = {
   getGliders: () => getJSON("/api/gliders"),
   getGliderProfile: (instrumentId) => getJSON(`/api/gliders/${instrumentId}/profile`),
 
+  // ── INCOIS Coastal HF Radar Surface Currents ──────────────────────────────
+  getHFRadarStations: () => getJSON("/api/hfradar"),
+  getHFRadarCurrents: () => getJSON("/api/hfradar/currents"),
+  getHFRadarStationDetails: (stationId) => getJSON(`/api/hfradar/${stationId}`),
+
+  // ── RAMA Moored Buoy Array ────────────────────────────────────────────────
+  getRAMABuoys: () => getJSON("/api/buoys"),
+  getRAMABuoyProfile: (buoyId, compareVariable) =>
+    getJSON(`/api/buoys/${buoyId}/profile` + (compareVariable ? `?compare_variable=${compareVariable}` : "")),
+
   // ── Analytics ─────────────────────────────────────────────────────────────
   getTrend: (variable, lat, lon, window = 30) =>
     getJSON(`/api/analytics/trend?variable=${variable}&lat=${lat}&lon=${lon}&window=${window}`),
@@ -100,3 +115,4 @@ export const api = {
     return getJSON(`/api/analytics/region_stats?${params}`);
   },
 };
+

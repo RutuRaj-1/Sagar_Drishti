@@ -8,6 +8,8 @@ import Scene3D from "./components/Scene3D.jsx";
 import ProfilePanel from "./components/ProfileChart.jsx";
 import StatsDashboard from "./components/StatsDashboard.jsx";
 import InstrumentSummaryPanel from "./components/InstrumentSummaryPanel.jsx";
+import DatasetHealthDashboard from "./components/DatasetHealthDashboard.jsx";
+import HFRadarRamaExplorer from "./components/HFRadarRamaExplorer.jsx";
 
 // Lazy load Cesium Globe View (only loads when user enters Globe mode)
 const CesiumGlobeView = lazy(() => import("./components/CesiumGlobeView.jsx"));
@@ -15,9 +17,13 @@ const CesiumGlobeView = lazy(() => import("./components/CesiumGlobeView.jsx"));
 export default function App() {
   // ── API / dataset state ──────────────────────────────────────────────────
   const [apiOnline, setApiOnline] = useState(null);
+  const [datasetStatus, setDatasetStatus] = useState({});
   const [meta, setMeta] = useState(null);
   const [volumetricMeta, setVolumetricMeta] = useState(null);
   const [dates, setDates] = useState([]);
+  const [hfRadarStations, setHfRadarStations] = useState([]);
+  const [hfRadarCurrents, setHfRadarCurrents] = useState([]);
+  const [ramaBuoys, setRamaBuoys] = useState([]);
 
   // ── Active selection state ───────────────────────────────────────────────
   const [datasetMode, setDatasetMode] = useState("cmems"); // "cmems" | "volumetric"
@@ -100,6 +106,15 @@ export default function App() {
       })
       .catch(console.error);
 
+    const fetchDatasetStatus = () => {
+      api.getDatasetStatus()
+        .then(setDatasetStatus)
+        .catch(console.error);
+    };
+
+    fetchDatasetStatus();
+    const statusInterval = setInterval(fetchDatasetStatus, 30000);
+
     api.getInstruments()
       .then(setInstruments)
       .catch(console.error);
@@ -111,6 +126,20 @@ export default function App() {
     api.getAllTrajectories()
       .then(setAllTrajectories)
       .catch(console.error);
+
+    api.getHFRadarStations()
+      .then(setHfRadarStations)
+      .catch(console.error);
+
+    api.getHFRadarCurrents()
+      .then(setHfRadarCurrents)
+      .catch(console.error);
+
+    api.getRAMABuoys()
+      .then(setRamaBuoys)
+      .catch(console.error);
+
+    return () => clearInterval(statusInterval);
   }, []);
 
   // ── Switch active variable list when dataset mode switches ────────────────
@@ -297,10 +326,36 @@ export default function App() {
             🔴 Argo & Gliders ({instruments.length + gliders.length})
           </button>
           <button
+            className={`topbar-tab${activeTab === "hfradar_rama" ? " active" : ""}`}
+            onClick={() => setActiveTab("hfradar_rama")}
+          >
+            📡 HF Radar & RAMA ({hfRadarStations.length + ramaBuoys.length})
+          </button>
+          <button
             className={`topbar-tab${activeTab === "analytics" ? " active" : ""}`}
             onClick={() => setActiveTab("analytics")}
           >
             📊 Analytics & Anomalies
+          </button>
+          <button
+            className={`topbar-tab${activeTab === "pipeline" ? " active" : ""}`}
+            onClick={() => setActiveTab("pipeline")}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            🛰️ Live Pipeline
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                background: "rgba(16, 185, 129, 0.2)",
+                color: "#34d399",
+                border: "1px solid rgba(52, 211, 153, 0.4)",
+                padding: "1px 6px",
+                borderRadius: 10,
+              }}
+            >
+              {Object.values(datasetStatus).filter((d) => d.status === "live").length || 6}/6 LIVE
+            </span>
           </button>
         </nav>
 
@@ -319,6 +374,32 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* ═══════════════════════════════════════════════════════
+          DATASET HEALTH & LIVE PIPELINE TAB
+          ═══════════════════════════════════════════════════════ */}
+      {activeTab === "pipeline" && (
+        <main style={{ height: "100%", overflowY: "auto", background: "radial-gradient(ellipse at top, #0f172a 0%, #020617 100%)" }}>
+          <DatasetHealthDashboard
+            datasetStatus={datasetStatus}
+            onRefresh={() => api.getDatasetStatus().then(setDatasetStatus)}
+          />
+        </main>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          HF RADAR & RAMA MOORED BUOY OBSERVATORY TAB
+          ═══════════════════════════════════════════════════════ */}
+      {activeTab === "hfradar_rama" && (
+        <main style={{ height: "100%", overflowY: "auto", background: "radial-gradient(ellipse at top, #0f172a 0%, #020617 100%)" }}>
+          <HFRadarRamaExplorer
+            hfRadarStations={hfRadarStations}
+            ramaBuoys={ramaBuoys}
+            selectedId={selectedInstrumentId}
+            onSelectInstrument={setSelectedInstrumentId}
+          />
+        </main>
+      )}
 
       {/* ═══════════════════════════════════════════════════════
           ANALYTICS TAB
@@ -414,6 +495,11 @@ export default function App() {
                 onHover={handleHover}
                 instruments={instruments}
                 gliders={gliders}
+                hfRadarStations={hfRadarStations}
+                hfRadarCurrents={hfRadarCurrents}
+                ramaBuoys={ramaBuoys}
+                showHFRadar={true}
+                showRAMABuoys={true}
                 currentVectors={currentVectors}
                 showCurrents={showCurrents}
                 onSelectInstrument={setSelectedInstrumentId}

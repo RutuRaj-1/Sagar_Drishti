@@ -28,6 +28,7 @@ import numpy as np
 import xarray as xr
 
 from app import config
+from app.services import netcdf_service
 
 _cache: dict = {}
 
@@ -125,7 +126,7 @@ def get_volumetric_metadata() -> Dict[str, Any]:
     lat_key, lon_key = _coord_keys(ds)
 
     depths = [round(float(d), 2) for d in ds.depth.values]
-    dates  = [str(t)[:10] for t in ds.time.values]
+    dates  = netcdf_service.get_available_dates()
 
     var_list = []
     for friendly_name, info in VOLUMETRIC_VARS.items():
@@ -230,7 +231,7 @@ def get_depth_slice(
     return {
         "variable":   variable,
         "nc_name":    nc_var,
-        "date":       str(time_sub.time.values)[:10],
+        "date":       date if date else str(time_sub.time.values)[:10],
         "depth":      round(actual_depth, 2),
         "unit":       VOLUMETRIC_VARS.get(variable, {}).get("units", ""),
         "long_name":  VOLUMETRIC_VARS.get(variable, {}).get("long_name", variable),
@@ -311,7 +312,7 @@ def get_current_vectors(
 
     valid_speed = speed[~np.isnan(speed)]
     return {
-        "date":       str(u_time.time.values)[:10],
+        "date":       date if date else str(u_time.time.values)[:10],
         "depth":      round(actual_depth, 2),
         "lat_count":  len(lats),
         "lon_count":  len(lons),
@@ -333,7 +334,6 @@ def get_model_depth_profile(
     """
     Extract a real vertical depth profile (all CMEMS depth levels)
     at the nearest grid point to (lat, lon) for the given date.
-
     Used for model-vs-Argo dual-line comparison chart in the frontend.
     """
     ds = _load_volumetric_dataset()
@@ -361,7 +361,7 @@ def get_model_depth_profile(
     return {
         "variable":  variable,
         "nc_name":   nc_var,
-        "date":      str(prof.time.values)[:10],
+        "date":      date if date else str(prof.time.values)[:10],
         "lat":       round(float(prof[lat_key].values), 4),
         "lon":       round(float(prof[lon_key].values), 4),
         "depths":    depths,
@@ -374,6 +374,11 @@ def get_model_depth_profile(
         "max_value": round(float(max(valid)), 3) if valid else None,
         "source":    "Copernicus Marine ANFC — 4D Physics",
     }
+
+
+def get_model_profile(lat: float, lon: float, date: Optional[str] = None, variable: str = "temperature"):
+    """Alias for get_model_depth_profile."""
+    return get_model_depth_profile(variable, lat, lon, date)
 
 
 def get_isosurface_grid(

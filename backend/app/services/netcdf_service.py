@@ -38,8 +38,10 @@ def _load_dataset() -> xr.Dataset:
     future September forecast days excluded).
     """
     ds = xr.open_dataset(config.NC_PATH, engine="netcdf4")
-    ds = ds.sel(time=slice(None, "2026-08-31"))
+    # Strictly clamp observation period to 2026-09-06 (exclude forecast days beyond today)
+    ds = ds.sel(time=slice("2022-06-01", "2026-09-06"))
     return ds
+
 
 
 def get_metadata() -> dict:

@@ -41,6 +41,11 @@ export default function OceanMap({
   onHover,
   instruments = [],
   gliders = [],
+  hfRadarStations = [],
+  hfRadarCurrents = [],
+  ramaBuoys = [],
+  showHFRadar = true,
+  showRAMABuoys = true,
   currentVectors = null,
   showCurrents = false,
   onSelectInstrument,
@@ -326,6 +331,8 @@ export default function OceanMap({
     const allInstruments = [
       ...instruments.map(i => ({ ...i, kind: "argo" })),
       ...gliders.map(g => ({ ...g, kind: "glider" })),
+      ...(showRAMABuoys ? ramaBuoys.map(b => ({ ...b, instrument_id: b.buoy_id, kind: "buoy" })) : []),
+      ...(showHFRadar ? hfRadarStations.map(st => ({ ...st, instrument_id: st.station_id, kind: "hfradar" })) : []),
     ];
 
     if (!allInstruments.length) return;
@@ -333,13 +340,15 @@ export default function OceanMap({
     allInstruments.forEach((inst) => {
       const isSelected = inst.instrument_id === selectedInstrumentId;
       const isGlider = inst.kind === "glider";
+      const isBuoy = inst.kind === "buoy";
+      const isHFRadar = inst.kind === "hfradar";
       const hasBGC = inst.bgc_params?.length > 0;
 
-      const fillColor = isGlider ? "#00d4f0" : hasBGC ? "#55efc4" : "#fdcb6e";
+      const fillColor = isBuoy ? "#f1c40f" : isHFRadar ? "#ff7675" : isGlider ? "#00d4f0" : hasBGC ? "#55efc4" : "#fdcb6e";
       const borderColor = isSelected ? "#ffffff" : "rgba(255,255,255,0.6)";
 
       const marker = L.circleMarker([inst.latitude, inst.longitude], {
-        radius: isSelected ? 9 : isGlider ? 8 : hasBGC ? 7 : 6,
+        radius: isSelected ? 10 : isBuoy ? 9 : isHFRadar ? 9 : isGlider ? 8 : hasBGC ? 7 : 6,
         fillColor,
         color: borderColor,
         weight: isSelected ? 2.5 : 1.2,
@@ -347,7 +356,8 @@ export default function OceanMap({
         fillOpacity: isSelected ? 1 : 0.85,
       });
 
-      const typeLabel = isGlider ? "🌊 Glider" : "🔴 Float";
+      const typeLabel = isBuoy ? "⚓ RAMA Buoy" : isHFRadar ? "📡 HF Radar" : isGlider ? "🌊 Glider" : "🔴 Float";
+
 
       marker.bindPopup(
         `<div style="font-family:'Inter',sans-serif;font-size:11px;min-width:180px;">

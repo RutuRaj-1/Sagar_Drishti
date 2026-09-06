@@ -15,9 +15,22 @@ Datasets in use (ALL REAL, no synthetic data):
      24,611 CTD obs to 935m depth, IOOS ERDDAP, timestamps re-aligned Aug 2026
 """
 import os
+from dotenv import load_dotenv
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 DATA_DIR = os.path.join(BASE_DIR, "data")
+
+# Incremental storage directories
+CMEMS_DAILY_DIR = os.path.join(DATA_DIR, "cmems")
+CMEMS_4D_DAILY_DIR = os.path.join(DATA_DIR, "cmems_4d")
+ARGO_LATEST_DIR = os.path.join(DATA_DIR, "argo", "profiles", "latest")
+GLIDER_HOURLY_DIR = os.path.join(DATA_DIR, "gliders", "hourly")
+HF_RADAR_HOURLY_DIR = os.path.join(DATA_DIR, "hf_radar", "hourly")
+RAMA_HOURLY_DIR = os.path.join(DATA_DIR, "rama", "hourly")
+
+for d in [CMEMS_DAILY_DIR, CMEMS_4D_DAILY_DIR, ARGO_LATEST_DIR, GLIDER_HOURLY_DIR, HF_RADAR_HOURLY_DIR, RAMA_HOURLY_DIR]:
+    os.makedirs(d, exist_ok=True)
 
 # Comma-separated browser origins for deployments. The local Vite origins keep
 # the development setup working without allowing arbitrary credentialed origins.
@@ -47,6 +60,13 @@ REAL_4D_NC_PATH = os.path.join(DATA_DIR, "real_ocean_model_4d.nc")
 # Dataset: ru29-20180812T0220 (Indian Ocean / Bay of Bengal / Sri Lanka Dome)
 # 4 operational mission phases, 24,611 real CTD observations down to 962m depth
 GLIDER_JSON_PATH = os.path.join(DATA_DIR, "real_glider_tracks.json")
+
+# ── INCOIS Coastal High-Frequency Radar Network ─────────────────────────────
+HF_RADAR_JSON_PATH = os.path.join(DATA_DIR, "hf_radar_data.json")
+
+# ── INCOIS / NOAA PMEL RAMA Moored Buoy Array ────────────────────────────────
+RAMA_BUOY_JSON_PATH = os.path.join(DATA_DIR, "rama_buoy_data.json")
+
 
 # ── Copernicus CMEMS variable catalogue ───────────────────────────────────────
 # Maps nc_name → display metadata for the API and the frontend color system.

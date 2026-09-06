@@ -222,12 +222,15 @@ All scientific assets live under `backend/data/` and are excluded from git (larg
 
 | Dataset | Source | Coverage | File |
 |---|---|---|---|
-| **CMEMS 2D Surface** | Copernicus Marine Service | `2022-06-01` → `2026-08-31` · 1,553 days · 6 vars · 9 km grid | `cmems_Copernicus_Marine_Ocean_Dataset.nc` |
-| **CMEMS 4D Depth** | CMEMS ANFC Physics Model | `2026-08-25` → `2026-08-31` · 7 days · 30 depth levels · 1.5–454 m | `real_ocean_model_4d.nc` |
-| **Argo Floats** | Coriolis GDAC / Argo Program | `2025-06-01` → `2026-08-31` · 91 floats · 183 NC files · 7 BGC params | `DataSelection_*/` directory |
-| **Ocean Gliders** | IOOS Glider DAC (RU29 Slocum G2) | `2026-08-17` → `2026-08-31` · 4 missions · 24,611 CTD obs | `real_glider_tracks.json` |
+| **CMEMS 2D Surface** | Copernicus Marine Service | `2022-06-01` → `2026-09-06` · 1,559 days · 6 vars · 9 km grid | `cmems_Copernicus_Marine_Ocean_Dataset.nc` |
+| **CMEMS 4D Depth** | CMEMS ANFC Physics Model | `2022-06-01` → `2026-09-06` · 30 depth levels · 1.5–454 m | `real_ocean_model_4d.nc` |
+| **Argo Floats** | Coriolis GDAC / Argo Program | `2025-09-06` → `2026-09-06` (1 Year) · 91 floats · 183 NC files · 7 BGC params | `DataSelection_*/` directory |
+| **Ocean Gliders** | IOOS Glider DAC (RU29 Slocum G2/G3) | `2025-09-06` → `2026-09-06` (1 Year) · 4 missions · 24,611 CTD obs | `real_glider_tracks.json` |
+| **HF Radar Network** | INCOIS / NIOT Coastal Radar | `2025-09-06` → `2026-09-06` · 6 stations · Coastal surface velocity ($u, v$) | `hf_radar_data.json` |
+| **RAMA Moored Buoys** | INCOIS / NOAA PMEL Array | `2025-09-06` → `2026-09-06` · 5 moorings · SST/SSS + thermistor profiles | `rama_buoy_data.json` |
 
 **Domain:** Arabian Sea + Bay of Bengal — `5–22°N, 68–95°E` at `0.083°` (~9 km) resolution.
+
 
 ### CMEMS Variable Catalogue
 
