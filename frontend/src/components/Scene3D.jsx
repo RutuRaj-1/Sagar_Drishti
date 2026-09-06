@@ -15,7 +15,7 @@ import { extractIsosurface } from "../utils/marchingCubes.js";
  *  - 3D Billboard Geographical Reference Labels (Arabian Sea, Bay of Bengal, etc.)
  */
 
-function createTextSprite(text, color = "#00d4f0", bg = "rgba(4,17,29,0.85)", fontSize = 32, scaleW = 44, scaleH = 12) {
+function createTextSprite(text, color = "#0077be", bg = "rgba(255,255,255,0.9)", fontSize = 32, scaleW = 44, scaleH = 12) {
   const canvas = document.createElement("canvas");
   canvas.width = 512;
   canvas.height = 128;
@@ -77,8 +77,9 @@ export default function Scene3D({
     if (!mount) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x030d16);
-    scene.fog = new THREE.FogExp2(0x030d16, 0.0012);
+    // Natural sky blue gradient background like Google Earth
+    scene.background = new THREE.Color(0x87ceeb); // Sky blue
+    scene.fog = new THREE.FogExp2(0xa4c8e1, 0.0008); // Lighter atmospheric fog
 
     const camera = new THREE.PerspectiveCamera(
       45,
@@ -102,22 +103,22 @@ export default function Scene3D({
     controls.maxDistance = 750;
     controls.maxPolarAngle = Math.PI * 0.52;
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x4488aa, 0.8);
+    // Natural daylight lighting for realistic Earth appearance
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xaaddff, 1.4);
+    const dirLight = new THREE.DirectionalLight(0xffffeb, 1.8); // Warm sunlight
     dirLight.position.set(120, 240, 100);
     scene.add(dirLight);
-    const pointLight = new THREE.PointLight(0x00d4f0, 0.7, 600);
+    const pointLight = new THREE.PointLight(0xffd699, 0.4, 600); // Subtle warm accent
     pointLight.position.set(-100, 100, -80);
     scene.add(pointLight);
 
-    // Sea floor reference plane
+    // Ocean floor reference plane - natural deep ocean blue
     const seaGeo = new THREE.PlaneGeometry(320, 220, 1, 1);
     const seaMat = new THREE.MeshBasicMaterial({
-      color: 0x05182a,
+      color: 0x1e5a8e, // Deeper ocean blue like Google Earth
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.5,
       side: THREE.DoubleSide,
     });
     const seaPlane = new THREE.Mesh(seaGeo, seaMat);
@@ -125,7 +126,7 @@ export default function Scene3D({
     seaPlane.position.y = -0.2;
     scene.add(seaPlane);
 
-    const gridHelper = new THREE.GridHelper(320, 20, 0x00d4f0, 0x0a3050);
+    const gridHelper = new THREE.GridHelper(320, 20, 0x4a90c7, 0x2c5f8d); // Natural ocean grid
     gridHelper.position.y = -0.1;
     scene.add(gridHelper);
 
@@ -137,16 +138,16 @@ export default function Scene3D({
     const labelGroup = new THREE.Group();
     scene.add(dataGroup, isosurfaceGroup, vectorGroup, instrumentGroup, labelGroup);
 
-    // Static geographic reference labels
+    // Static geographic reference labels with natural colors
     const labels = [
-      { text: "🌊 Arabian Sea", pos: [-85, 12, -15], color: "#74b9ff", scaleW: 42, scaleH: 11 },
-      { text: "🌊 Bay of Bengal", pos: [85, 12, -15], color: "#4ecdc4", scaleW: 42, scaleH: 11 },
-      { text: "🇮🇳 Indian Peninsula", pos: [-10, 16, -20], color: "#fdcb6e", scaleW: 46, scaleH: 11 },
-      { text: "🇱🇰 Sri Lanka", pos: [22, 10, 68], color: "#55efc4", scaleW: 34, scaleH: 10 },
-      { text: "🏝️ Lakshadweep", pos: [-45, 8, 38], color: "#9ec4db", scaleW: 38, scaleH: 9 },
-      { text: "🏝️ Andaman & Nicobar", pos: [115, 8, 24], color: "#9ec4db", scaleW: 46, scaleH: 9 },
-      { text: "🧭 North (22°N)", pos: [0, 4, -105], color: "#4d7a9a", scaleW: 36, scaleH: 8 },
-      { text: "🧭 South (5°N)", pos: [0, 4, 105], color: "#4d7a9a", scaleW: 36, scaleH: 8 },
+      { text: "🌊 Arabian Sea", pos: [-85, 12, -15], color: "#0077be", scaleW: 42, scaleH: 11 },
+      { text: "🌊 Bay of Bengal", pos: [85, 12, -15], color: "#0096c7", scaleW: 42, scaleH: 11 },
+      { text: "🇮🇳 Indian Peninsula", pos: [-10, 16, -20], color: "#6b8e23", scaleW: 46, scaleH: 11 },
+      { text: "🇱🇰 Sri Lanka", pos: [22, 10, 68], color: "#228b22", scaleW: 34, scaleH: 10 },
+      { text: "🏝️ Lakshadweep", pos: [-45, 8, 38], color: "#20b2aa", scaleW: 38, scaleH: 9 },
+      { text: "🏝️ Andaman & Nicobar", pos: [115, 8, 24], color: "#2e8b57", scaleW: 46, scaleH: 9 },
+      { text: "🧭 North (22°N)", pos: [0, 4, -105], color: "#4682b4", scaleW: 36, scaleH: 8 },
+      { text: "🧭 South (5°N)", pos: [0, 4, 105], color: "#4682b4", scaleW: 36, scaleH: 8 },
     ];
 
     labels.forEach(({ text, pos, color, scaleW, scaleH }) => {
@@ -182,7 +183,7 @@ export default function Scene3D({
       frameId = requestAnimationFrame(animate);
       controls.update();
       const t = clock.getElapsedTime();
-      if (seaMat) seaMat.opacity = 0.65 + 0.05 * Math.sin(t * 0.8);
+      if (seaMat) seaMat.opacity = 0.48 + 0.05 * Math.sin(t * 0.8); // Gentle ocean shimmer
 
       // Subtle rotation/pulse for isosurface if present
       if (isosurfaceGroup.children.length > 0) {
@@ -285,8 +286,8 @@ export default function Scene3D({
 
     const material = new THREE.MeshPhongMaterial({
       vertexColors: true,
-      shininess: 35,
-      specular: new THREE.Color(0x225577),
+      shininess: 45,
+      specular: new THREE.Color(0x88ccff), // Natural water specular reflection
       side: THREE.FrontSide,
       transparent: layerOpacity < 1.0,
       opacity: layerOpacity,
@@ -297,9 +298,9 @@ export default function Scene3D({
 
     const wireGeo = new THREE.WireframeGeometry(geometry);
     const wireMat = new THREE.LineBasicMaterial({
-      color: 0x00d4f0,
+      color: 0x4a90c7, // Subtle grid lines matching ocean color
       transparent: true,
-      opacity: 0.08,
+      opacity: 0.12,
     });
     const wire = new THREE.LineSegments(wireGeo, wireMat);
     dataGroup.add(wire);

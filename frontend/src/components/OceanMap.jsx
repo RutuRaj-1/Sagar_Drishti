@@ -70,43 +70,50 @@ export default function OceanMap({
 
     L.control.zoom({ position: "topright" }).addTo(map);
 
+    // Natural Earth-style satellite imagery basemap with blue oceans and realistic landmass colors
     L.tileLayer(
-      "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       {
-        attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ",
-        maxZoom: 16,
+        attribution: "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics",
+        maxZoom: 18,
         minZoom: 4,
         opacity: 1.0,
       }
     ).addTo(map);
 
+    // Overlay with political boundaries, place names, and ocean labels for clarity
     L.tileLayer(
-      "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+      "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
       {
         attribution: "",
-        maxZoom: 16,
+        maxZoom: 18,
         minZoom: 4,
         zIndex: 400,
-        opacity: 0.95,
+        opacity: 0.8,
       }
     ).addTo(map);
 
-    // Domain boundary
+    // Domain boundary - enhanced visibility on satellite imagery
     L.rectangle(
       [
         [DOMAIN.south, DOMAIN.west],
         [DOMAIN.north, DOMAIN.east],
       ],
       {
-        color: "rgba(0, 212, 240, 0.6)",
-        weight: 1.5,
-        fill: false,
-        dashArray: "6 4",
+        color: "#00d4f0",
+        weight: 2.5,
+        fill: true,
+        fillColor: "#00d4f0",
+        fillOpacity: 0.12,
+        dashArray: "8 6",
       }
     ).addTo(map);
 
+    // Regional ocean labels for better context on natural basemap
     [
       { pos: [DOMAIN.north, (DOMAIN.west + DOMAIN.east) / 2], text: "SAGAR-DRISHTI Domain: Bay of Bengal + Arabian Sea" },
+      { pos: [15.5, 70], text: "🌊 Arabian Sea" },
+      { pos: [15.5, 87], text: "🌊 Bay of Bengal" },
     ].forEach(({ pos, text }) => {
       L.marker(pos, { opacity: 0 })
         .addTo(map)
@@ -395,7 +402,7 @@ export default function OceanMap({
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <div
         ref={mapContainerRef}
-        style={{ width: "100%", height: "100%", background: "#030d16" }}
+        style={{ width: "100%", height: "100%", background: "#a4c8e1" }}
       />
     </div>
   );
