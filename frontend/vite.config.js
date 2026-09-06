@@ -1,8 +1,33 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { viteStaticCopy } from 'vite-plugin-static-copy';
+import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Copy Cesium assets to build output
+    viteStaticCopy({
+      targets: [
+        {
+          src: path.join('node_modules', 'cesium', 'Build', 'Cesium', 'Workers'),
+          dest: 'cesium'
+        },
+        {
+          src: path.join('node_modules', 'cesium', 'Build', 'Cesium', 'ThirdParty'),
+          dest: 'cesium'
+        },
+        {
+          src: path.join('node_modules', 'cesium', 'Build', 'Cesium', 'Assets'),
+          dest: 'cesium'
+        },
+        {
+          src: path.join('node_modules', 'cesium', 'Build', 'Cesium', 'Widgets'),
+          dest: 'cesium'
+        }
+      ]
+    })
+  ],
   server: {
     host: true,
     port: 5173,
@@ -14,4 +39,8 @@ export default defineConfig({
       },
     },
   },
+  define: {
+    // Define Cesium base URL for asset loading
+    CESIUM_BASE_URL: JSON.stringify('/cesium')
+  }
 });

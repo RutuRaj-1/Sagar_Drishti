@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from "react";
 import { api } from "./api.js";
 import { paletteForVariable, paletteGradientCss, varColor, colorForValue, PALETTES } from "./utils/colormap.js";
 
@@ -8,6 +8,9 @@ import Scene3D from "./components/Scene3D.jsx";
 import ProfilePanel from "./components/ProfileChart.jsx";
 import StatsDashboard from "./components/StatsDashboard.jsx";
 import InstrumentSummaryPanel from "./components/InstrumentSummaryPanel.jsx";
+
+// Lazy load Cesium Globe View (only loads when user enters Globe mode)
+const CesiumGlobeView = lazy(() => import("./components/CesiumGlobeView.jsx"));
 
 export default function App() {
   // ── API / dataset state ──────────────────────────────────────────────────
@@ -24,7 +27,7 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
 
   // ── Display settings ─────────────────────────────────────────────────────
-  const [viewMode, setViewMode] = useState("map"); // "map" | "3d"
+  const [viewMode, setViewMode] = useState("map"); // "map" | "3d" | "globe"
   const [activeTab, setActiveTab] = useState("viz"); // "viz" | "analytics" | "argo"
   const [verticalExaggeration, setVerticalExaggeration] = useState(1.5);
   const [layerOpacity, setLayerOpacity] = useState(0.85);
@@ -418,7 +421,7 @@ export default function App() {
               />
             )}
 
-            {/* 3D WebGL Scene */}
+            {/* 3D WebGL Scene (Regional Three.js) */}
             {viewMode === "3d" && (
               <Scene3D
                 surface={surface}
@@ -440,7 +443,32 @@ export default function App() {
               />
             )}
 
-            {/* 2D / 3D Mode Toggle */}
+            {/* Cesium 3D Globe View (Google Earth-style) */}
+            {viewMode === "globe" && (
+              <Suspense fallback={
+                <div className="viewport-loading">
+                  <div className="loading-spinner" />
+                  <div className="loading-text">Loading Earth Globe...</div>
+                </div>
+              }>
+                <CesiumGlobeView
+                  surface={surface}
+                  palette={palette}
+                  colorScale={colorScale}
+                  colorMin={colorRange?.min}
+                  colorMax={colorRange?.max}
+                  layerOpacity={layerOpacity}
+                  instruments={instruments}
+                  gliders={gliders}
+                  currentVectors={currentVectors}
+                  showCurrents={showCurrents}
+                  onSelectInstrument={setSelectedInstrumentId}
+                  selectedInstrumentId={selectedInstrumentId}
+                />
+              </Suspense>
+            )}
+
+            {/* 2D / 3D / Globe Mode Toggle */}
             <div className="view-toggle" style={{ top: "auto", bottom: 14, right: 14 }}>
               <button
                 className={`view-toggle-btn${viewMode === "map" ? " active" : ""}`}
@@ -449,10 +477,16 @@ export default function App() {
                 🗺️ 2D Map
               </button>
               <button
+                className={`view-toggle-btn${viewMode === "globe" ? " active" : ""}`}
+                onClick={() => setViewMode("globe")}
+              >
+                🌍 Globe
+              </button>
+              <button
                 className={`view-toggle-btn${viewMode === "3d" ? " active" : ""}`}
                 onClick={() => setViewMode("3d")}
               >
-                🌐 3D WebGL
+                🏔️ Regional
               </button>
             </div>
 

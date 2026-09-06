@@ -1420,3 +1420,47 @@ input[type="range"]:focus {
   border: 2px solid rgba(255, 255, 255, 0.3) !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4) !important;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Cesium Globe View Styling
+   ══════════════════════════════════════════════════════════════ */
+
+/* Override Cesium widget styling to match our dark theme */
+.cesium-widget {
+  font-family: var(--font-body) !important;
+}
+
+.cesium-widget-credits {
+  font-size: 9px !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+  color: #cbd5e1 !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+}
+
+.cesium-viewer-toolbar {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  border: 2px solid rgba(0, 119, 190, 0.3) !important;
+}
+
+.cesium-button {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-radius: 4px !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.cesium-button:hover {
+  background: rgba(240, 249, 255, 1) !important;
+  border-color: #0284c7 !important;
+}
+
+/* Cesium loading overlay */
+.cesium-viewer-cesiumInspectorContainer,
+.cesium-viewer-cesiumInspector,
+.cesium-viewer-animationContainer,
+.cesium-viewer-timelineContainer,
+.cesium-viewer-bottom {
+  display: none !important;
+}
