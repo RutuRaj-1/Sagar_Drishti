@@ -15,11 +15,12 @@ import { ARGO_PARAM_COLORS } from "../utils/colormap.js";
  *  - Interactive Click-to-inspect and Coordinate Hover
  */
 
+// SAGAR-DRISHTI operational domain (Indian Ocean: Bay of Bengal + Arabian Sea)
 const DOMAIN = {
-  south: 5.0,
-  north: 23.0,
-  west: 60.0,
-  east: 97.0,
+  south: 4.0,    // Extended slightly south to cover all instruments
+  north: 24.0,   // Extended slightly north
+  west: 59.0,    // Extended slightly west
+  east: 98.0,    // Extended slightly east
 };
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -60,12 +61,12 @@ export default function OceanMap({
     const map = L.map(mapContainerRef.current, {
       center: [14.0, 78.0],
       zoom: 5,
+      minZoom: 2,        // Allow zooming out to see entire world
+      maxZoom: 18,       // Allow detailed zoom in
       zoomControl: false,
       attributionControl: true,
-      maxBounds: [
-        [DOMAIN.south - 5, DOMAIN.west - 5],
-        [DOMAIN.north + 5, DOMAIN.east + 5],
-      ],
+      maxBounds: undefined,  // Remove bounds to allow world exploration
+      maxBoundsViscosity: 0.0,
     });
 
     L.control.zoom({ position: "topright" }).addTo(map);

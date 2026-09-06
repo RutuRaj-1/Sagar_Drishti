@@ -77,9 +77,10 @@ export default function Scene3D({
     if (!mount) return;
 
     const scene = new THREE.Scene();
-    // Natural sky blue gradient background like Google Earth
-    scene.background = new THREE.Color(0x87ceeb); // Sky blue
-    scene.fog = new THREE.FogExp2(0xa4c8e1, 0.0008); // Lighter atmospheric fog
+    // Black space background for Earth-from-space realistic view
+    scene.background = new THREE.Color(0x000814);
+    // Subtle depth fog
+    scene.fog = new THREE.FogExp2(0x000814, 0.0006);
 
     const camera = new THREE.PerspectiveCamera(
       45,
@@ -102,6 +103,8 @@ export default function Scene3D({
     controls.minDistance = 30;
     controls.maxDistance = 750;
     controls.maxPolarAngle = Math.PI * 0.52;
+    controls.enablePan = true;  // Allow panning to explore
+    controls.autoRotate = false; // Disable auto-rotate initially
 
     // Natural daylight lighting for realistic Earth appearance
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
