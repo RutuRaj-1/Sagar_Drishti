@@ -4,26 +4,7 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import { colorForValue } from "../utils/colormap.js";
 
 // Configure Cesium asset paths for Vite
-window.CESIUM_BASE_URL = '/node_modules/cesium/Build/Cesium';
-
-/**
- * CesiumGlobeView — Realistic 3D Earth Globe Mode
- * -----------------------------------------------
- * Google Earth-style spherical globe using Cesium.js with:
- *  - Real satellite imagery (Cesium World Imagery)
- *  - Natural Earth terrain (Cesium World Terrain)
- *  - Atmospheric glow and realistic lighting
- *  - Full world exploration (smooth zoom, pan, rotate)
- *  - Same data as Scene3D: Argo floats, gliders, ocean data
- *  - Same interactions: click markers, select variables, view profiles
- *
- * CONSUMES SAME STATE AS Scene3D - no duplicate fetching!
- */
-
-// Set Cesium ion access token (free tier)
-// Sign up at: https://ion.cesium.com/signup
-// Replace with your token or use default for development
-Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiOGQzOWQ4Zi05YTg4LTRjNDMtYjdhZi0zMjE1NTg3MTM4YzUiLCJpZCI6MjU5NTkzLCJpYXQiOjE3NDY1NTYxNTl9.TRKLHjfDgC8VtX-uPQy_qF3_TUvKTW7CqvfOnR9JMZ8";
+window.CESIUM_BASE_URL = '/cesium';
 
 export default function CesiumGlobeView({
   surface,
@@ -33,6 +14,8 @@ export default function CesiumGlobeView({
   colorMax,
   instruments = [],
   gliders = [],
+  hfRadarStations = [],
+  ramaBuoys = [],
   currentVectors = null,
   showCurrents = false,
   onSelectInstrument,
@@ -50,15 +33,34 @@ export default function CesiumGlobeView({
     let viewer;
     let clickHandler;
 
-    // Async initialization function
     const initViewer = async () => {
-      // Create Cesium Viewer with realistic Earth settings
-      viewer = new Cesium.Viewer(cesiumContainerRef.current, {
-        // Imagery: Real satellite colors
-        imageryProvider: await Cesium.IonImageryProvider.fromAssetId(2),
-        // Terrain: Real elevation data
-        terrainProvider: await Cesium.CesiumTerrainProvider.fromIonAssetId(1),
-        // UI settings for clean appearance
+      // 1. High-resolution satellite imagery (Esri World Imagery)
+      let imageryProvider = null;
+      try {
+        imageryProvider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(
+          "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
+        );
+      } catch (err) {
+        console.warn("ArcGIS imagery failed, falling back to OpenStreetMap:", err);
+        try {
+          imageryProvider = new Cesium.OpenStreetMapImageryProvider({
+            url: "https://tile.openstreetmap.org/",
+          });
+        } catch (e) {
+          console.error("OSM fallback also failed:", e);
+        }
+      }
+
+      // 2. Terrain provider (gracefully fallback to Ellipsoid if world terrain unavailable)
+      let terrainProvider = new Cesium.EllipsoidTerrainProvider();
+      try {
+        terrainProvider = await Cesium.createWorldTerrainAsync();
+      } catch (e) {
+        terrainProvider = new Cesium.EllipsoidTerrainProvider();
+      }
+
+      // 3. Create Viewer
+      const options = {
         animation: false,
         timeline: false,
         baseLayerPicker: false,
@@ -70,35 +72,35 @@ export default function CesiumGlobeView({
         geocoder: false,
         infoBox: false,
         selectionIndicator: false,
-        // Scene mode: 3D globe (not 2D/2.5D)
         sceneMode: Cesium.SceneMode.SCENE3D,
-        // Performance
-        requestRenderMode: true,
-        maximumRenderTimeChange: Infinity,
-      });
+        requestRenderMode: false,
+        terrainProvider: terrainProvider,
+      };
 
-      // Enable realistic lighting and atmosphere
-      viewer.scene.globe.enableLighting = true; // Day/night shading based on sun
-      viewer.scene.skyAtmosphere.show = true;   // Blue atmospheric glow
-      viewer.scene.fog.enabled = true;           // Distance haze
-      viewer.scene.fog.density = 0.0001;
-      
-      // Better visual quality
-      viewer.scene.globe.depthTestAgainstTerrain = true; // Proper occlusion
-      viewer.scene.highDynamicRange = true;              // Better color range
+      if (imageryProvider) {
+        options.imageryProvider = imageryProvider;
+      }
 
-      // Start camera looking at Indian Ocean region
+      viewer = new Cesium.Viewer(cesiumContainerRef.current, options);
+
+      // Disable night-time darkness so Indian Ocean is in bright daylight 24/7
+      viewer.scene.globe.enableLighting = false;
+      viewer.scene.skyAtmosphere.show = true;
+      viewer.scene.fog.enabled = true;
+      viewer.scene.globe.depthTestAgainstTerrain = false;
+
+      // Start camera looking at Indian Ocean (Bay of Bengal & Arabian Sea)
       viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(78.5, 14.0, 4500000), // lon, lat, height (meters)
-        duration: 2.5,
+        destination: Cesium.Cartesian3.fromDegrees(78.5, 14.0, 6500000),
+        duration: 1.5,
         orientation: {
           heading: Cesium.Math.toRadians(0),
-          pitch: Cesium.Math.toRadians(-45),
-          roll: 0.0
-        }
+          pitch: Cesium.Math.toRadians(-85),
+          roll: 0.0,
+        },
       });
 
-      // Click handler for marker selection
+      // Click handler for instrument selection
       clickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
       clickHandler.setInputAction((movement) => {
         const pickedObject = viewer.scene.pick(movement.position);
@@ -144,6 +146,8 @@ export default function CesiumGlobeView({
     const allInstruments = [
       ...instruments.map(i => ({ ...i, kind: "argo" })),
       ...gliders.map(g => ({ ...g, kind: "glider" })),
+      ...(ramaBuoys || []).map(b => ({ ...b, instrument_id: b.buoy_id, kind: "buoy" })),
+      ...(hfRadarStations || []).map(st => ({ ...st, instrument_id: st.station_id, kind: "hfradar" })),
     ];
 
     if (!allInstruments.length) return;
@@ -156,12 +160,18 @@ export default function CesiumGlobeView({
     allInstruments.forEach((inst) => {
       const isSelected = inst.instrument_id === selectedInstrumentId;
       const isGlider = inst.kind === "glider";
+      const isBuoy = inst.kind === "buoy";
+      const isHFRadar = inst.kind === "hfradar";
       const hasBGC = inst.bgc_params?.length > 0;
 
-      // Determine color using existing colorForValue function
+      // Determine color using existing color scheme
       let markerColor = "#fdcb6e"; // Default yellow for Argo
       if (isSelected) {
         markerColor = "#ffffff"; // White for selected
+      } else if (isBuoy) {
+        markerColor = "#f59e0b"; // Gold for RAMA buoys
+      } else if (isHFRadar) {
+        markerColor = "#ef4444"; // Red for HF Radar stations
       } else if (isGlider) {
         markerColor = "#00d4f0"; // Cyan for gliders
       } else if (hasBGC) {

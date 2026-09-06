@@ -546,6 +546,8 @@ export default function App() {
                   layerOpacity={layerOpacity}
                   instruments={instruments}
                   gliders={gliders}
+                  hfRadarStations={hfRadarStations}
+                  ramaBuoys={ramaBuoys}
                   currentVectors={currentVectors}
                   showCurrents={showCurrents}
                   onSelectInstrument={setSelectedInstrumentId}
