@@ -5,7 +5,7 @@ export default function ExpertWorkflowBar({ onSelectPreset, activePresetId }) {
   return (
     <div className="forecaster-card expert-workflow-card">
       <div className="forecaster-card-header">
-        <div className="forecaster-card-icon">⚡</div>
+        <div className="forecaster-card-icon">[PRESET]</div>
         <div className="forecaster-card-title-group">
           <span className="forecaster-badge">Forecaster Accelerators</span>
           <h3 className="forecaster-card-title">Guided Expert Workflows</h3>

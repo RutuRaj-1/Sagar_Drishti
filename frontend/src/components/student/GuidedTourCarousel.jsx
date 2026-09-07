@@ -92,18 +92,18 @@ export default function GuidedTourCarousel({
       {/* Control Buttons */}
       <div className="tour-controls">
         <button className="tour-btn secondary" onClick={handlePrev} title="Previous stop">
-          ◀ Prev
+          &lt; Prev
         </button>
 
         <button
           className={`tour-btn play ${isPlaying ? "active" : ""}`}
           onClick={() => setIsPlaying(!isPlaying)}
         >
-          {isPlaying ? "⏸ Pause Tour" : "▶ Auto Play"}
+          {isPlaying ? "Pause Tour" : "Auto Play"}
         </button>
 
         <button className="tour-btn secondary" onClick={handleNext} title="Next stop">
-          Next ▶
+          Next &gt;
         </button>
 
         { "speechSynthesis" in window && (
@@ -112,13 +112,13 @@ export default function GuidedTourCarousel({
             onClick={() => setSpeechEnabled(!speechEnabled)}
             title="Toggle voice narration"
           >
-            {speechEnabled ? "🔊 Voice On" : "🔇 Voice Off"}
+            {speechEnabled ? "Voice On" : "Voice Off"}
           </button>
         )}
 
         {onExitTour && (
           <button className="tour-btn exit" onClick={onExitTour} title="Exit tour mode">
-            ✕ Exit
+            Exit
           </button>
         )}
       </div>

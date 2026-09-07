@@ -7,7 +7,7 @@ export default function ModelSkillDashboard() {
   return (
     <div className="forecaster-card model-skill-card">
       <div className="forecaster-card-header">
-        <div className="forecaster-card-icon">🎯</div>
+        <div className="forecaster-card-icon">[SKILL]</div>
         <div className="forecaster-card-title-group">
           <span className="forecaster-badge">Model Verification</span>
           <h3 className="forecaster-card-title">Forecast Skill & Data Quality</h3>
@@ -55,7 +55,7 @@ export default function ModelSkillDashboard() {
 
       {/* Sensor Coverage & Latency */}
       <div className="telemetry-status-box">
-        <div className="telemetry-title">📡 Active Telemetry Coverage</div>
+        <div className="telemetry-title">Active Telemetry Coverage</div>
         <div className="telemetry-grid">
           <div className="tele-item">
             <span>Argo Floats:</span> <strong>{skill.sensor_coverage.argo_floats} Active</strong>

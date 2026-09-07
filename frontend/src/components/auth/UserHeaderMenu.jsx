@@ -25,15 +25,15 @@ const UserHeaderMenu = ({ currentMode, onNavigateMode, onOpenAuth, onLogoutSucce
       {/* Account / Role Badge */}
       <div className="user-profile-trigger" onClick={() => setDropdownOpen(!dropdownOpen)}>
         <div className="user-avatar-circle">
-          {user ? user.avatar || '👤' : role === 'forecaster' ? '⚓' : '🎓'}
+          {user ? 'U' : role === 'forecaster' ? 'FC' : 'ST'}
         </div>
         <div className="user-info-text">
           <span className="user-name">{user ? user.name : 'Guest Visitor'}</span>
           <span className="user-role-tag">
-            {role === 'forecaster' ? '⚓ Forecaster' : role === 'student' ? '🎓 Student' : '🌐 Guest'}
+            {role === 'forecaster' ? 'Forecaster' : role === 'student' ? 'Student' : 'Guest'}
           </span>
         </div>
-        <span className="dropdown-arrow">{dropdownOpen ? '▲' : '▼'}</span>
+        <span className="dropdown-arrow">{dropdownOpen ? '^' : 'v'}</span>
       </div>
 
       {/* Dropdown Menu */}
@@ -55,7 +55,6 @@ const UserHeaderMenu = ({ currentMode, onNavigateMode, onOpenAuth, onLogoutSucce
               setDropdownOpen(false);
             }}
           >
-            <span className="dd-icon">🎓</span>
             <div>
               <div className="dd-item-title">Student / Explorer Mode</div>
               <div className="dd-item-desc">Educational story-driven 3D ocean literacy</div>
@@ -69,7 +68,6 @@ const UserHeaderMenu = ({ currentMode, onNavigateMode, onOpenAuth, onLogoutSucce
               setDropdownOpen(false);
             }}
           >
-            <span className="dd-icon">⚓</span>
             <div>
               <div className="dd-item-title">Forecaster / Researcher Mode</div>
               <div className="dd-item-desc">4D depth slices, skill score & AI validation</div>
@@ -83,7 +81,6 @@ const UserHeaderMenu = ({ currentMode, onNavigateMode, onOpenAuth, onLogoutSucce
               setDropdownOpen(false);
             }}
           >
-            <span className="dd-icon">🏠</span>
             <div>
               <div className="dd-item-title">Landing Page Overview</div>
               <div className="dd-item-desc">Return to main SAGAR-DRISHTI hub</div>
@@ -94,7 +91,6 @@ const UserHeaderMenu = ({ currentMode, onNavigateMode, onOpenAuth, onLogoutSucce
 
           {role !== 'guest' ? (
             <button className="dd-item logout-item" onClick={handleLogout}>
-              <span className="dd-icon">🚪</span>
               <span className="dd-item-title">Sign Out Account</span>
             </button>
           ) : (
@@ -105,7 +101,6 @@ const UserHeaderMenu = ({ currentMode, onNavigateMode, onOpenAuth, onLogoutSucce
                 onOpenAuth('login');
               }}
             >
-              <span className="dd-icon">🔑</span>
               <span className="dd-item-title">Sign In / Switch Role</span>
             </button>
           )}

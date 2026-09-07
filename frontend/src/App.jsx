@@ -478,7 +478,7 @@ export default function App() {
           ═══════════════════════════════════════════════════════ */}
       <header className="topbar">
         <div className="brand" onClick={() => handleSelectMode("landing")} style={{ cursor: "pointer" }}>
-          <div className="brand-icon">🌊</div>
+          <div className="brand-icon">SD</div>
           <div className="brand-text">
             <h1>SAGAR<span className="accent">-DRISHTI</span></h1>
             <div className="subtitle">सागर-दृष्टि · 3D Ocean Intelligence · SIH 26067 · INCOIS</div>
@@ -496,7 +496,7 @@ export default function App() {
               border: currentView === "forecaster" ? "1.5px solid #0284c7" : "none",
             }}
           >
-            🔬 Forecaster Mode
+            Forecaster Mode
           </button>
           <button
             className={`topbar-tab explorer-tab${currentView === "explore" ? " active" : ""}`}
@@ -507,31 +507,31 @@ export default function App() {
               fontWeight: 700,
             }}
           >
-            🎓 Explorer Mode
+            Explorer Mode
           </button>
           <button
             className={`topbar-tab${activeTab === "viz" ? " active" : ""}`}
             onClick={() => setActiveTab("viz")}
           >
-            🌐 3D/2D Viewport
+            3D/2D Viewport
           </button>
           <button
             className={`topbar-tab${activeTab === "argo" ? " active" : ""}`}
             onClick={() => setActiveTab("argo")}
           >
-            🔴 Argo & Gliders ({instruments.length + gliders.length})
+            Argo & Gliders ({instruments.length + gliders.length})
           </button>
           <button
             className={`topbar-tab${activeTab === "hfradar_rama" ? " active" : ""}`}
             onClick={() => setActiveTab("hfradar_rama")}
           >
-            📡 HF Radar & RAMA ({hfRadarStations.length + ramaBuoys.length})
+            HF Radar & RAMA ({hfRadarStations.length + ramaBuoys.length})
           </button>
           <button
             className={`topbar-tab${activeTab === "analytics" ? " active" : ""}`}
             onClick={() => setActiveTab("analytics")}
           >
-            📊 Analytics & Anomalies
+            Analytics & Anomalies
           </button>
         </nav>
 
@@ -726,19 +726,19 @@ export default function App() {
                 className={`view-toggle-btn${viewMode === "map" ? " active" : ""}`}
                 onClick={() => setViewMode("map")}
               >
-                🗺️ 2D Map
+                2D Map
               </button>
               <button
                 className={`view-toggle-btn${viewMode === "globe" ? " active" : ""}`}
                 onClick={() => setViewMode("globe")}
               >
-                🌍 Globe
+                Globe
               </button>
               <button
                 className={`view-toggle-btn${viewMode === "webgl" ? " active" : ""}`}
                 onClick={() => setViewMode("webgl")}
               >
-                🧊 3D WebGL
+                3D WebGL
               </button>
             </div>
 
@@ -903,7 +903,7 @@ function ArgoExplorer({
       {/* ── Left Column: In-Situ Platform List Sidebar ── */}
       <div className="argo-sidebar">
         <div className="argo-header-card">
-          <div className="argo-title">🔴 In-Situ Instrument Explorer</div>
+          <div className="argo-title">In-Situ Instrument Explorer</div>
           <div className="argo-subtitle">
             {instruments.length} Coriolis Argo Floats + {gliders.length} IOOS Slocum Gliders<br />
             Indian Ocean Domain (5°N–23°N, 60°E–97°E)
@@ -934,7 +934,7 @@ function ArgoExplorer({
         <div style={{ marginBottom: 10 }}>
           <input
             type="text"
-            placeholder="🔍 Search float ID, glider, coords..."
+            placeholder="Search float ID, glider, coords..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
@@ -972,7 +972,7 @@ function ArgoExplorer({
         {/* Platform List */}
         <div className="panel-section" style={{ border: "none", padding: 0 }}>
           <div className="panel-section-title" style={{ color: "#334155", fontSize: 11, marginBottom: 8 }}>
-            <span>📡</span> Available Platforms ({filteredList.length})
+            Available Platforms ({filteredList.length})
           </div>
           <ul className="instrument-list">
             {filteredList.map((inst) => {
@@ -1008,8 +1008,8 @@ function ArgoExplorer({
                     )}
                   </div>
                   <div className="inst-meta" style={{ marginTop: 3 }}>
-                    📍 {inst.latitude?.toFixed(2)}°N, {inst.longitude?.toFixed(2)}°E
-                    &nbsp;·&nbsp;📅 {inst.timestamp?.slice(0, 10)}
+                    {inst.latitude?.toFixed(2)}°N, {inst.longitude?.toFixed(2)}°E
+                    &nbsp;·&nbsp;{inst.timestamp?.slice(0, 10)}
                   </div>
                 </li>
               );

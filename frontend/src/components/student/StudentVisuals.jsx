@@ -42,7 +42,7 @@ export default function StudentVisuals({
       {/* ── VERTICAL DEPTH GRADIENT BAR ── */}
       <div className="student-card depth-gradient-card">
         <div className="student-card-header">
-          <div className="student-card-icon">🌊</div>
+          <div className="student-card-icon">[DEPTH]</div>
           <div className="student-card-title-group">
             <span className="student-badge">Depth Profile</span>
             <h3 className="student-card-title">Water Column Zones</h3>
@@ -92,7 +92,7 @@ export default function StudentVisuals({
           style={{ marginTop: 12 }}
         >
           <span>{showScientific ? "Hide Scientific Details" : "Show Scientific Readings"}</span>
-          <span>{showScientific ? "▲" : "▼"}</span>
+          <span>{showScientific ? "^" : "v"}</span>
         </button>
 
         {showScientific && (
@@ -120,7 +120,7 @@ export default function StudentVisuals({
       {/* ── COMPARE TWO PLACES ── */}
       <div className="student-card compare-places-card">
         <div className="student-card-header">
-          <div className="student-card-icon">📍</div>
+          <div className="student-card-icon">[LOC]</div>
           <div className="student-card-title-group">
             <span className="student-badge">Side-by-Side</span>
             <h3 className="student-card-title">Compare Two Places</h3>
@@ -178,7 +178,7 @@ export default function StudentVisuals({
         </div>
 
         <div className="compare-verdict">
-          <span>💡</span>
+          <span>[NOTE]</span>
           <strong>{comparison.verdict}</strong>
         </div>
       </div>

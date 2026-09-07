@@ -45,10 +45,10 @@ export default function ForecasterTechnicalCharts({
 
         <div className="chart-export-btns">
           <button className="export-btn" onClick={handleExportCSV} title="Export CSV dataset">
-            💾 CSV
+            CSV
           </button>
           <button className="export-btn" onClick={handleExportPNG} title="Export PNG graphic">
-            📷 PNG
+            PNG
           </button>
         </div>
       </div>
@@ -59,19 +59,19 @@ export default function ForecasterTechnicalCharts({
           className={`chart-subtab-btn ${chartSubTab === "profile" ? "active" : ""}`}
           onClick={() => setChartSubTab("profile")}
         >
-          📈 Dual-Line Profiles
+          Dual-Line Profiles
         </button>
         <button
           className={`chart-subtab-btn ${chartSubTab === "stats" ? "active" : ""}`}
           onClick={() => setChartSubTab("stats")}
         >
-          📊 Anomaly Stats & Histogram
+          Anomaly Stats & Histogram
         </button>
         <button
           className={`chart-subtab-btn ${chartSubTab === "correlation" ? "active" : ""}`}
           onClick={() => setChartSubTab("correlation")}
         >
-          🔗 Pearson Correlation
+          Pearson Correlation
         </button>
       </div>
 
@@ -123,7 +123,7 @@ export default function ForecasterTechnicalCharts({
             </div>
 
             <div className="histogram-placeholder-card">
-              <h4>📊 Anomaly Frequency Distribution (20 Bins)</h4>
+              <h4>Anomaly Frequency Distribution (20 Bins)</h4>
               <p>Normal Gaussian curve centered at μ = 28.32°C. Positive tail (&gt; +1.5°C anomaly) covers 14.8% of domain area.</p>
               <div className="bin-bars-visual">
                 {[12, 25, 45, 78, 120, 165, 210, 245, 190, 140, 95, 60, 42, 28, 18, 10, 5, 3, 2, 1].map((count, i) => (
@@ -184,7 +184,7 @@ export default function ForecasterTechnicalCharts({
             </div>
 
             <div className="corr-interpretation-box">
-              <span>💡</span>
+              <span>[NOTE]</span>
               <p>{correlation.interpretation}</p>
             </div>
           </div>

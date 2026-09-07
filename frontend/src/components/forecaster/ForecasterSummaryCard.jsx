@@ -21,7 +21,7 @@ export default function ForecasterSummaryCard({
   return (
     <div className="forecaster-card forecaster-summary-card">
       <div className="forecaster-card-header">
-        <div className="forecaster-card-icon">⚡</div>
+        <div className="forecaster-card-icon">[SYS]</div>
         <div className="forecaster-card-title-group">
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span className="forecaster-badge">Operational Synopsis</span>
@@ -60,7 +60,7 @@ export default function ForecasterSummaryCard({
         onClick={() => setShowMetadataDrawer(!showMetadataDrawer)}
       >
         <span>{showMetadataDrawer ? "Hide Model Run Metadata" : "View Full Model Run Metadata"}</span>
-        <span>{showMetadataDrawer ? "▲" : "▼"}</span>
+        <span>{showMetadataDrawer ? "^" : "v"}</span>
       </button>
 
       {showMetadataDrawer && (

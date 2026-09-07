@@ -21,7 +21,7 @@ const LandingPage = ({ onSelectMode, onOpenAuth }) => {
       {/* Top Header Navigation */}
       <header className="landing-header">
         <div className="landing-brand">
-          <div className="brand-logo-icon">🌊</div>
+          <div className="brand-logo-icon">SD</div>
           <div>
             <div className="brand-title">SAGAR-DRISHTI</div>
             <div className="brand-sub">सागर-दृष्टि • INCOIS Ocean Intelligence</div>
@@ -52,7 +52,7 @@ const LandingPage = ({ onSelectMode, onOpenAuth }) => {
         <div className="landing-header-actions">
           {currentRole !== 'guest' ? (
             <div className="logged-in-pill">
-              <span className="pill-role">{currentRole === 'forecaster' ? '⚓ Duty Forecaster' : '🎓 Student'}</span>
+              <span className="pill-role">{currentRole === 'forecaster' ? 'Duty Forecaster' : 'Student'}</span>
               <button className="btn-secondary-sm" onClick={() => onOpenAuth()}>Change Account</button>
             </div>
           ) : (
@@ -92,7 +92,6 @@ const LandingPage = ({ onSelectMode, onOpenAuth }) => {
               onClick={() => onSelectMode('explore')}
             >
               <div className="mode-card-badge">Public & Educational</div>
-              <div className="mode-card-icon">🎓</div>
               <h2 className="mode-card-title">Student / Explorer Mode</h2>
               <p className="mode-card-desc">
                 Story-driven ocean literacy workspace. Explore 3D SST & salinity animations, track marine species, view guided climate tours, and converse with our educational AI chatbot.
@@ -125,7 +124,6 @@ const LandingPage = ({ onSelectMode, onOpenAuth }) => {
               }}
             >
               <div className="mode-card-badge pro-badge">Scientific & Operational</div>
-              <div className="mode-card-icon">⚓</div>
               <h2 className="mode-card-title">Forecaster / Researcher Mode</h2>
               <p className="mode-card-desc">
                 Deep decision-support system for oceanographers and duty forecasters. Perform skill score validation, Pearson correlation analysis, 4D volume depth slicers, and HF Radar stream analysis.
@@ -149,7 +147,7 @@ const LandingPage = ({ onSelectMode, onOpenAuth }) => {
 
           {/* Quick Demo Access Bar */}
           <div className="demo-credentials-banner">
-            <div className="demo-banner-title">🔑 Quick Auth & Demo Access</div>
+            <div className="demo-banner-title">Quick Auth & Demo Access</div>
             <div className="demo-buttons-row">
               <button 
                 className="demo-chip-btn google-chip"
@@ -167,13 +165,13 @@ const LandingPage = ({ onSelectMode, onOpenAuth }) => {
                 className="demo-chip-btn student-chip"
                 onClick={() => onOpenAuth('quick_student')}
               >
-                <span className="chip-icon">🎓</span> Demo Student (student / student123)
+                Demo Student (student / student123)
               </button>
               <button 
                 className="demo-chip-btn forecaster-chip"
                 onClick={() => onOpenAuth('quick_forecaster')}
               >
-                <span className="chip-icon">⚓</span> Demo Forecaster (forecaster / forecast123)
+                Demo Forecaster (forecaster / forecast123)
               </button>
             </div>
           </div>

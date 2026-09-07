@@ -70,14 +70,14 @@ export default function ForecasterChatbot({ variable, date }) {
     <div className="forecaster-card forecaster-chatbot-card">
       <div className="chatbot-header">
         <div className="chatbot-title">
-          <span className="chatbot-avatar">🔬</span>
+          <span className="chatbot-avatar">[AI]</span>
           <div>
             <h3>Ask About This Forecast / Data</h3>
             <small>Technical Decision-Support AI Assistant</small>
           </div>
         </div>
         <button className="clear-chat-btn" onClick={handleClear} title="Clear conversation">
-          🗑️ Clear
+          Clear
         </button>
       </div>
 
@@ -130,13 +130,13 @@ export default function ForecasterChatbot({ variable, date }) {
           onChange={(e) => setInput(e.target.value)}
         />
         <button type="submit" disabled={!input.trim()}>
-          Analyze ➔
+          Analyze -&gt;
         </button>
       </form>
 
       <div className="chatbot-disclaimer">
         <small>
-          ⚠️ AI assistant provides technical decision support. For official advisories, rely on INCOIS watch duty procedures.
+          Note: AI assistant provides technical decision support. For official advisories, rely on INCOIS watch duty procedures.
         </small>
       </div>
     </div>

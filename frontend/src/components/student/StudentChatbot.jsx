@@ -70,14 +70,14 @@ export default function StudentChatbot({ variable, date }) {
     <div className="student-card student-chatbot-card">
       <div className="chatbot-header">
         <div className="chatbot-title">
-          <span className="chatbot-avatar">🤖</span>
+          <span className="chatbot-avatar">[AI]</span>
           <div>
             <h3>Ask About This Ocean View</h3>
             <small>Educational AI Ocean Assistant</small>
           </div>
         </div>
         <button className="clear-chat-btn" onClick={handleClear} title="Clear conversation">
-          🗑️ Clear
+          Clear
         </button>
       </div>
 
@@ -130,13 +130,13 @@ export default function StudentChatbot({ variable, date }) {
           onChange={(e) => setInput(e.target.value)}
         />
         <button type="submit" disabled={!input.trim()}>
-          Send ➔
+          Send -&gt;
         </button>
       </form>
 
       <div className="chatbot-disclaimer">
         <small>
-          ⚠️ AI assistant provides educational explanations. For official cyclone or marine advisories, consult INCOIS and IMD.
+          Note: AI assistant provides educational explanations. For official cyclone or marine advisories, consult INCOIS and IMD.
         </small>
       </div>
     </div>

@@ -70,7 +70,7 @@ const AuthModal = ({ isOpen, onClose, initialRole = 'student', onSuccess }) => {
         <button className="auth-modal-close" onClick={onClose}>✕</button>
 
         <div className="auth-modal-header">
-          <div className="auth-modal-logo">🌊 SAGAR-DRISHTI</div>
+          <div className="auth-modal-logo">SAGAR-DRISHTI</div>
           <h2 className="auth-modal-title">Authentication Portal</h2>
           <p className="auth-modal-subtitle">
             Sign in to access specialized ocean intelligence features
@@ -84,7 +84,6 @@ const AuthModal = ({ isOpen, onClose, initialRole = 'student', onSuccess }) => {
             className={`role-tab ${selectedRole === 'student' ? 'active' : ''}`}
             onClick={() => handleRoleChange('student')}
           >
-            <span className="tab-icon">🎓</span>
             <div>
               <div className="tab-title">Student / Explorer</div>
               <div className="tab-sub">Layman & Educational</div>
@@ -96,7 +95,6 @@ const AuthModal = ({ isOpen, onClose, initialRole = 'student', onSuccess }) => {
             className={`role-tab ${selectedRole === 'forecaster' ? 'active' : ''}`}
             onClick={() => handleRoleChange('forecaster')}
           >
-            <span className="tab-icon">⚓</span>
             <div>
               <div className="tab-title">Duty Forecaster</div>
               <div className="tab-sub">Operational Analytics</div>
@@ -129,7 +127,7 @@ const AuthModal = ({ isOpen, onClose, initialRole = 'student', onSuccess }) => {
 
         {/* One-Click Quick Fill Demo Buttons */}
         <div className="auth-quick-fill-box">
-          <div className="quick-fill-label">⚡ One-Click Demo Credentials:</div>
+          <div className="quick-fill-label">One-Click Demo Credentials:</div>
           <div className="quick-fill-btns">
             <button 
               type="button"
@@ -150,7 +148,7 @@ const AuthModal = ({ isOpen, onClose, initialRole = 'student', onSuccess }) => {
 
         {error && (
           <div className="auth-error-banner">
-            ⚠️ {error}
+            {error}
           </div>
         )}
 

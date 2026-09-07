@@ -47,11 +47,11 @@ export default function StudentRightPanel({
   };
 
   const topicChips = [
-    { id: "all", label: "🌊 All Topics" },
-    { id: "monsoon", label: "🌧️ Monsoons" },
-    { id: "cyclone", label: "🌀 Cyclones" },
-    { id: "corals", label: "🪸 Coral Health" },
-    { id: "climate", label: "🌡️ Climate Change" },
+    { id: "all", label: "All Topics" },
+    { id: "monsoon", label: "Monsoons" },
+    { id: "cyclone", label: "Cyclones" },
+    { id: "corals", label: "Coral Health" },
+    { id: "climate", label: "Climate Change" },
   ];
 
   return (
@@ -60,13 +60,13 @@ export default function StudentRightPanel({
       <div className="student-panel-top">
         <div className="student-panel-banner">
           <div className="banner-badge-group">
-            <span className="banner-badge">🎓 Student / Explorer Mode</span>
+            <span className="banner-badge">Student / Explorer Mode</span>
             <button
               className={`narrator-toggle-btn ${isAudioNarrating ? "active" : ""}`}
               onClick={() => setIsAudioNarrating(!isAudioNarrating)}
               title="Toggle AI Audio Narrator"
             >
-              {isAudioNarrating ? "🔊 Narrator: PLAYING" : "🔇 Voice Narrator"}
+              {isAudioNarrating ? "Narrator: PLAYING" : "Voice Narrator"}
             </button>
           </div>
           <h2>Understanding India's Oceans</h2>
@@ -91,19 +91,19 @@ export default function StudentRightPanel({
             className={`student-tab-btn ${activeTab === "guide" ? "active" : ""}`}
             onClick={() => setActiveTab("guide")}
           >
-            📖 Explorer Guide
+            Explorer Guide
           </button>
           <button
             className={`student-tab-btn ${activeTab === "quiz" ? "active" : ""}`}
             onClick={() => setActiveTab("quiz")}
           >
-            🧩 Ocean Quiz
+            Ocean Quiz
           </button>
           <button
             className={`student-tab-btn ${activeTab === "chat" ? "active" : ""}`}
             onClick={() => setActiveTab("chat")}
           >
-            🤖 Ask AI
+            Ask AI
           </button>
         </div>
       </div>
@@ -122,7 +122,7 @@ export default function StudentRightPanel({
                   <span className="bar b5"></span>
                 </div>
                 <div className="narrator-text">
-                  <strong>🎙️ AI Audio Narrator</strong>
+                  <strong>AI Audio Narrator</strong>
                   <small>Speaking: "Sea Surface Temperature governs monsoon moisture transfer..."</small>
                 </div>
               </div>
@@ -132,14 +132,14 @@ export default function StudentRightPanel({
             {!inTourMode ? (
               <div className="student-card start-tour-prompt-card">
                 <div className="tour-prompt-header">
-                  <span className="tour-prompt-icon">🗺️</span>
+                  <span className="tour-prompt-icon">[TOUR]</span>
                   <div>
                     <h3>Take the Guided Ocean Tour</h3>
                     <p>6 curated story stops with 3D views & voice narration</p>
                   </div>
                 </div>
                 <button className="start-tour-btn" onClick={handleStartTour}>
-                  ▶ Start Guided Tour (6 Stops)
+                  Start Guided Tour (6 Stops)
                 </button>
               </div>
             ) : (
@@ -188,7 +188,7 @@ export default function StudentRightPanel({
         {activeTab === "quiz" && (
           <div className="student-card ocean-quiz-card">
             <div className="student-card-header">
-              <div className="student-card-icon">🧩</div>
+              <div className="student-card-icon">[Q]</div>
               <div className="student-card-title-group">
                 <span className="student-badge">Knowledge Check</span>
                 <h3 className="student-card-title">Ocean Literacy Challenge</h3>
@@ -223,9 +223,9 @@ export default function StudentRightPanel({
               {quizAnswered && (
                 <div className={`quiz-feedback-box ${quizAnswered === 'B' ? 'success' : 'alert'}`}>
                   {quizAnswered === 'B' ? (
-                    <p>🎉 <strong>Correct!</strong> The Ganges-Brahmaputra basin discharges over 1,000 km³ of freshwater annually, creating a low-salinity surface layer!</p>
+                    <p><strong>Correct!</strong> The Ganges-Brahmaputra basin discharges over 1,000 km³ of freshwater annually, creating a low-salinity surface layer!</p>
                   ) : (
-                    <p>❌ <strong>Not quite.</strong> The main reason is river runoff from major river systems into the Bay of Bengal!</p>
+                    <p><strong>Not quite.</strong> The main reason is river runoff from major river systems into the Bay of Bengal!</p>
                   )}
                 </div>
               )}
