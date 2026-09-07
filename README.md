@@ -56,12 +56,27 @@ The platform has six main views:
 
 | View | What you can do |
 |---|---|
-| **🔬 Forecaster / Researcher Mode** | Operational decision-support workspace (`/forecaster` or `#forecaster`). Features technical synopses, structured AI technical analysis (Summary, Warnings, Insights, Predictions), dual-line profile validation, Pearson cross-correlations, model skill meters (24h/7d MAE & RMSE by depth layer), 4 guided expert workflow accelerators, and a technical Q&A AI assistant. |
-| **🎓 Student / Explorer Mode** | Public, story-driven ocean literacy workspace (`/explore` or `#explore`). Features layman summaries, AI-generated insights, interactive depth zone bar, location comparisons, ocean health status badge, 6-stop guided tour with voice narration, rotating facts, and an educational Q&A AI chatbot. |
+| **🌐 Landing Page & RBAC Portal** | Public entry point featuring high-resolution starry night ocean visuals, role mode selector cards, and instant single-click demo login buttons. Integrates Firebase Auth (`sagar-drishti.firebaseapp.com`) with local offline fallbacks. |
+| **🔬 Forecaster / Researcher Mode** | Operational decision-support workspace (`/forecaster` or `#forecaster`). Protected route requiring `forecaster` role credentials. Features technical synopses, structured AI technical analysis (Summary, Warnings, Insights, Predictions), dual-line profile validation, Pearson cross-correlations, model skill meters (24h/7d MAE & RMSE by depth layer), 4 guided expert workflow accelerators, and a technical Q&A AI assistant. |
+| **🎓 Student / Explorer Mode** | Public, story-driven ocean literacy workspace (`/explore` or `#explore`). Accessible by all visitors (`student`, `forecaster`, or `guest`). Features layman summaries, AI-generated insights, interactive depth zone bar, location comparisons, ocean health status badge, 6-stop guided tour with voice narration, rotating facts, and an educational Q&A AI chatbot. |
 | **2D GIS Map** | Inspect any CMEMS variable as a heatmap overlay on a Leaflet map. Click a point → instant 4-year time series. Toggle animated current vectors. |
 | **3D WebGL Terrain** | Rotate the same ocean field as a Three.js height-field terrain. Enable depth-resolved Marching Cubes isosurface shells for thermocline visualization. |
 | **Argo & Gliders** | Browse 91 Argo floats + 4 glider missions. Click any platform → depth profile charts (7 BGC parameters) + T-S water mass diagram + model co-location comparison. |
 | **Analytics & Anomalies** | Compute spatial statistics, 20-bin histograms, 4-year trend lines, rolling means, anomaly fields, and Pearson cross-correlations at any grid point or bounding box. |
+
+---
+
+## Role-Based Access Control (RBAC) & Demo Credentials
+
+SAGAR-DRISHTI provides role-gated navigation and security controls:
+
+### Demo Accounts & Credentials
+
+| Role | Username | Password | Access Rights |
+|---|---|---|---|
+| **Student / Explorer** | `student` | `student123` | Public access to Student Workspace (`/explore`), interactive 3D globe, educational chatbot, guided climate stories. |
+| **Duty Forecaster** | `forecaster` | `forecast123` | Full access to Forecaster Workspace (`/forecaster`), 4D volumetric depth slices, model skill meters, Pearson correlation, HF Radar, and decision AI. |
+| **Public Visitor (Guest)** | *None* | *None* | Open access to Landing Page and Student Explorer mode. Access to `/forecaster` triggers `AccessDenied (403)` protection screen. |
 
 ---
 

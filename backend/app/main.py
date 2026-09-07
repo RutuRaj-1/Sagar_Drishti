@@ -31,6 +31,7 @@ from app.routers import (
     hfradar,
     buoys,
     datasets,
+    auth,
 )
 
 
@@ -82,6 +83,7 @@ app.include_router(hfradar.router)
 app.include_router(buoys.router)
 app.include_router(analytics.router)
 app.include_router(datasets.router)
+app.include_router(auth.router)
 
 
 @app.get("/api/health", tags=["health"])

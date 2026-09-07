@@ -9,7 +9,17 @@
 const BASE = import.meta.env.VITE_API_BASE || "";
 
 async function getJSON(path) {
-  const res = await fetch(`${BASE}${path}`);
+  let role = 'guest';
+  try {
+    const stored = localStorage.getItem('sagar_drishti_user');
+    if (stored) role = JSON.parse(stored).role || 'guest';
+  } catch (e) {}
+
+  const res = await fetch(`${BASE}${path}`, {
+    headers: {
+      'X-User-Role': role
+    }
+  });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`API error ${res.status} on ${path}: ${detail}`);

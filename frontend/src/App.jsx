@@ -15,6 +15,13 @@ import CesiumGlobeView from "./components/CesiumGlobeView.jsx";
 import StudentRightPanel from "./components/student/StudentRightPanel.jsx";
 import ForecasterRightPanel from "./components/forecaster/ForecasterRightPanel.jsx";
 
+// Auth & RBAC Components
+import LandingPage from "./components/auth/LandingPage.jsx";
+import AuthModal from "./components/auth/AuthModal.jsx";
+import AccessDenied from "./components/auth/AccessDenied.jsx";
+import UserHeaderMenu from "./components/auth/UserHeaderMenu.jsx";
+import { getCurrentRole, getStoredUser, loginWithCredentials } from "./services/authService.js";
+
 
 export default function App() {
   // ── API / dataset state ──────────────────────────────────────────────────
@@ -34,9 +41,15 @@ export default function App() {
   const [depthIndex, setDepthIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  // ── View & Auth State ───────────────────────────────────────────────────
+  const [currentView, setCurrentView] = useState("landing"); // "landing" | "explore" | "forecaster"
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalRole, setAuthModalRole] = useState("student");
+  const [userRole, setUserRole] = useState(getCurrentRole());
+
   // ── Display settings ─────────────────────────────────────────────────────
   const [viewMode, setViewMode] = useState("map"); // "map" | "globe" | "webgl"
-  const [activeTab, setActiveTab] = useState("viz"); // "viz" | "analytics" | "argo"
+  const [activeTab, setActiveTab] = useState("explore"); // "viz" | "analytics" | "argo" | "explore" | "forecaster"
   const [verticalExaggeration, setVerticalExaggeration] = useState(5.0);  // Default 5x for better 3D terrain visibility
   const [layerOpacity, setLayerOpacity] = useState(0.85);
   const [palette, setPalette] = useState("thermal");
@@ -86,7 +99,7 @@ export default function App() {
   const safeDateIndex = Math.min(dateIndex, Math.max(0, activeDates.length - 1));
   const currentDate = activeDates[safeDateIndex] || "2026-08-31";
 
-  // ── Initial Bootstrap ────────────────────────────────────────────────────
+  // ── Initial Bootstrap & Routing ─────────────────────────────────────────
   useEffect(() => {
     const hash = window.location.hash;
     const pathname = window.location.pathname;
@@ -97,6 +110,7 @@ export default function App() {
       pathname.includes("/explore") ||
       pathname.includes("/student")
     ) {
+      setCurrentView("explore");
       setActiveTab("explore");
     } else if (
       hash === "#forecaster" ||
@@ -105,9 +119,53 @@ export default function App() {
       pathname.includes("/forecaster") ||
       pathname.includes("/researcher")
     ) {
+      setCurrentView("forecaster");
       setActiveTab("forecaster");
+    } else {
+      setCurrentView("landing");
     }
+  }, []);
 
+  const handleSelectMode = useCallback((mode) => {
+    if (mode === "landing") {
+      setCurrentView("landing");
+      window.location.hash = "";
+      return;
+    }
+    if (mode === "explore") {
+      setCurrentView("explore");
+      setActiveTab("explore");
+      window.location.hash = "explore";
+      return;
+    }
+    if (mode === "forecaster") {
+      setCurrentView("forecaster");
+      setActiveTab("forecaster");
+      window.location.hash = "forecaster";
+      return;
+    }
+  }, []);
+
+  const handleOpenAuth = (action = 'login', role = 'student') => {
+    if (action === 'quick_student') {
+      loginWithCredentials('student', 'student123', 'student').then(() => {
+        setUserRole('student');
+        handleSelectMode('explore');
+      });
+      return;
+    }
+    if (action === 'quick_forecaster') {
+      loginWithCredentials('forecaster', 'forecast123', 'forecaster').then(() => {
+        setUserRole('forecaster');
+        handleSelectMode('forecaster');
+      });
+      return;
+    }
+    setAuthModalRole(role);
+    setAuthModalOpen(true);
+  };
+
+  useEffect(() => {
     api.health()
       .then(() => setApiOnline(true))
       .catch(() => setApiOnline(false));
@@ -356,13 +414,51 @@ export default function App() {
   const vc = varColor(variable);
   const depthLevels = volumetricMeta?.depth_levels || [0, 10, 20, 50, 100, 200, 500, 1000];
 
+  // ── Render 1: Landing Page ───────────────────────────────────────────────
+  if (currentView === "landing") {
+    return (
+      <>
+        <LandingPage 
+          onSelectMode={handleSelectMode} 
+          onOpenAuth={handleOpenAuth} 
+        />
+        <AuthModal 
+          isOpen={authModalOpen} 
+          onClose={() => setAuthModalOpen(false)} 
+          initialRole={authModalRole} 
+          onSuccess={handleAuthSuccess} 
+        />
+      </>
+    );
+  }
+
+  // ── Render 2: Access Denied Guard for Forecaster Mode ───────────────────
+  if (currentView === "forecaster" && userRole !== "forecaster") {
+    return (
+      <>
+        <AccessDenied 
+          onOpenAuth={handleOpenAuth} 
+          onLaunchExplorer={() => handleSelectMode("explore")} 
+          onGoHome={() => handleSelectMode("landing")} 
+        />
+        <AuthModal 
+          isOpen={authModalOpen} 
+          onClose={() => setAuthModalOpen(false)} 
+          initialRole={authModalRole} 
+          onSuccess={handleAuthSuccess} 
+        />
+      </>
+    );
+  }
+
+  // ── Render 3: Workspace Application Shell ────────────────────────────────
   return (
     <div className="app-shell">
       {/* ═══════════════════════════════════════════════════════
           TOP BAR
           ═══════════════════════════════════════════════════════ */}
       <header className="topbar">
-        <div className="brand">
+        <div className="brand" onClick={() => handleSelectMode("landing")} style={{ cursor: "pointer" }}>
           <div className="brand-icon">🌊</div>
           <div className="brand-text">
             <h1>SAGAR<span className="accent">-DRISHTI</span></h1>
@@ -372,28 +468,22 @@ export default function App() {
 
         <nav className="topbar-tabs">
           <button
-            className={`topbar-tab forecaster-tab${activeTab === "forecaster" ? " active" : ""}`}
-            onClick={() => {
-              setActiveTab("forecaster");
-              window.location.hash = "forecaster";
-            }}
+            className={`topbar-tab forecaster-tab${currentView === "forecaster" ? " active" : ""}`}
+            onClick={() => handleSelectMode("forecaster")}
             style={{
-              background: activeTab === "forecaster" ? "linear-gradient(135deg, #0f172a, #334155)" : "transparent",
-              color: activeTab === "forecaster" ? "#38bdf8" : "#94a3b8",
+              background: currentView === "forecaster" ? "linear-gradient(135deg, #0f172a, #334155)" : "transparent",
+              color: currentView === "forecaster" ? "#38bdf8" : "#94a3b8",
               fontWeight: 700,
-              border: activeTab === "forecaster" ? "1.5px solid #0284c7" : "none",
+              border: currentView === "forecaster" ? "1.5px solid #0284c7" : "none",
             }}
           >
             🔬 Forecaster Mode
           </button>
           <button
-            className={`topbar-tab explorer-tab${activeTab === "explore" ? " active" : ""}`}
-            onClick={() => {
-              setActiveTab("explore");
-              window.location.hash = "explore";
-            }}
+            className={`topbar-tab explorer-tab${currentView === "explore" ? " active" : ""}`}
+            onClick={() => handleSelectMode("explore")}
             style={{
-              background: activeTab === "explore" ? "linear-gradient(135deg, #0284c7, #0d9488)" : "transparent",
+              background: currentView === "explore" ? "linear-gradient(135deg, #0284c7, #0d9488)" : "transparent",
               color: "#ffffff",
               fontWeight: 700,
             }}
@@ -402,10 +492,7 @@ export default function App() {
           </button>
           <button
             className={`topbar-tab${activeTab === "viz" ? " active" : ""}`}
-            onClick={() => {
-              setActiveTab("viz");
-              if (window.location.hash === "#explore") window.location.hash = "";
-            }}
+            onClick={() => setActiveTab("viz")}
           >
             🌐 3D/2D Viewport
           </button>
@@ -427,41 +514,15 @@ export default function App() {
           >
             📊 Analytics & Anomalies
           </button>
-          <button
-            className={`topbar-tab${activeTab === "pipeline" ? " active" : ""}`}
-            onClick={() => setActiveTab("pipeline")}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-          >
-            🛰️ Live Pipeline
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                background: "rgba(16, 185, 129, 0.2)",
-                color: "#34d399",
-                border: "1px solid rgba(52, 211, 153, 0.4)",
-                padding: "1px 6px",
-                borderRadius: 10,
-              }}
-            >
-              {Object.values(datasetStatus).filter((d) => d.status === "live").length || 6}/6 LIVE
-            </span>
-          </button>
         </nav>
 
         <div className="topbar-right">
-          <div className="dataset-badge">
-            <div className="dot" />
-            <strong>{datasetMode === "volumetric" ? "4D Volumetric" : "CMEMS Gridded"}</strong>
-            &nbsp;·&nbsp;<strong style={{ color: "var(--c-chla)" }}>{instruments.length} Floats + {gliders.length} Gliders</strong>
-          </div>
-          <div className={`status-pill${apiOnline === false ? " offline" : ""}`}>
-            {apiOnline === null
-              ? "Connecting…"
-              : apiOnline
-              ? "API Online"
-              : "API Offline"}
-          </div>
+          <UserHeaderMenu 
+            currentMode={currentView} 
+            onNavigateMode={handleSelectMode} 
+            onOpenAuth={handleOpenAuth} 
+            onLogoutSuccess={() => setUserRole(getCurrentRole())} 
+          />
         </div>
       </header>
 
@@ -762,6 +823,13 @@ export default function App() {
           )}
         </main>
       )}
+
+      <AuthModal 
+        isOpen={authModalOpen} 
+        onClose={() => setAuthModalOpen(false)} 
+        initialRole={authModalRole} 
+        onSuccess={handleAuthSuccess} 
+      />
     </div>
   );
 }
