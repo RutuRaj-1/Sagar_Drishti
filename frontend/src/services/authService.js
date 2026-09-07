@@ -155,28 +155,45 @@ export const logout = async () => {
 /**
  * Subscribes to Firebase onAuthStateChanged and syncs localStorage.
  * If user is logged in via Firebase Auth, resolves role and passes user to callback.
+ * Admin-email users always get 'admin' regardless of what's stored locally.
  */
 export const subscribeAuthState = (callback) => {
   let unsubscribe = () => {};
   import('./firebase.js').then(async ({ auth }) => {
     const { onAuthStateChanged } = await import('firebase/auth');
-    const { getUserRole } = await import('./firestoreService.js');
+    const { getUserRole, getCanonicalRole, ensureUserDoc } = await import('./firestoreService.js');
 
     unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
-        const stored = getStoredUser();
-        let role = stored?.role;
-        if (!role || role === 'guest') {
-          role = await getUserRole(fbUser.uid).catch(() => 'student');
+        // Always check canonical role first (admin email list beats localStorage)
+        const canonical = typeof getCanonicalRole === 'function'
+          ? getCanonicalRole(fbUser.email || "")
+          : null;
+
+        let role = canonical;
+
+        if (!role) {
+          const stored = getStoredUser();
+          role = stored?.role;
+          if (!role || role === 'guest') {
+            // Pass email so getUserRole can honour the admin list even with stale Firestore
+            role = await getUserRole(fbUser.uid, fbUser.email || "").catch(() => 'student');
+          }
         }
+
+        // Ensure Firestore doc is up-to-date (upgrades stale student→admin in background)
+        if (canonical && canonical !== (getStoredUser()?.role)) {
+          ensureUserDoc(fbUser.uid, fbUser.email, fbUser.displayName || "").catch(() => {});
+        }
+
         const user = {
-          uid: fbUser.uid,
+          uid:      fbUser.uid,
           username: fbUser.email ? fbUser.email.split('@')[0] : 'user',
-          name: fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Explorer'),
-          role: role || 'student',
-          email: fbUser.email || '',
-          avatar: fbUser.photoURL || (role === 'forecaster' ? '⚓' : role === 'admin' ? '🛡️' : '🎓'),
-          title: role === 'forecaster' ? 'Duty Forecaster' : role === 'admin' ? 'System Administrator' : 'Ocean Explorer',
+          name:     fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Explorer'),
+          role:     role || 'student',
+          email:    fbUser.email || '',
+          avatar:   fbUser.photoURL || (role === 'forecaster' ? '⚓' : role === 'admin' ? '🛡️' : '🎓'),
+          title:    role === 'forecaster' ? 'Duty Forecaster' : role === 'admin' ? 'System Administrator' : 'Ocean Explorer',
           provider: fbUser.providerData?.[0]?.providerId || 'google',
         };
         localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
