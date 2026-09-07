@@ -24,15 +24,15 @@ if os.path.exists(config.NC_PATH):
                 "variables": list(ds.data_vars.keys()),
                 "status": "OK"
             }
-            print(f"  ✓ Found: {len(ds.time)} timesteps, {len(ds.data_vars)} variables")
+            print(f"  [OK] Found: {len(ds.time)} timesteps, {len(ds.data_vars)} variables")
     except Exception as e:
         results["datasets"]["cmems_2d"] = {"exists": True, "status": f"ERROR: {str(e)}"}
         results["issues"].append(f"CMEMS 2D: {str(e)}")
-        print(f"  ✗ Error: {e}")
+        print(f"  [FAIL] Error: {e}")
 else:
     results["datasets"]["cmems_2d"] = {"exists": False, "status": "FILE NOT FOUND"}
     results["issues"].append(f"CMEMS 2D file not found: {config.NC_PATH}")
-    print(f"  ✗ File not found")
+    print(f"  [FAIL] File not found")
 
 # Test CMEMS 4D
 print("\nTesting CMEMS 4D Volumetric...")
@@ -55,15 +55,15 @@ if os.path.exists(config.REAL_4D_NC_PATH):
                 "variables": list(ds4d.data_vars.keys()),
                 "status": "OK"
             }
-            print(f"  ✓ Found: {len(ds4d.time)} timesteps, {len(ds4d[depth_coord]) if depth_coord else 0} depth levels")
+            print(f"  [OK] Found: {len(ds4d.time)} timesteps, {len(ds4d[depth_coord]) if depth_coord else 0} depth levels")
     except Exception as e:
         results["datasets"]["cmems_4d"] = {"exists": True, "status": f"ERROR: {str(e)}"}
         results["issues"].append(f"CMEMS 4D: {str(e)}")
-        print(f"  ✗ Error: {e}")
+        print(f"  [FAIL] Error: {e}")
 else:
     results["datasets"]["cmems_4d"] = {"exists": False, "status": "FILE NOT FOUND"}
     results["issues"].append(f"CMEMS 4D file not found: {config.REAL_4D_NC_PATH}")
-    print(f"  ✗ File not found")
+    print(f"  [FAIL] File not found")
 
 # Test Argo
 print("\nTesting Argo Profiles...")
@@ -75,18 +75,18 @@ if os.path.exists(config.ARGO_NC_DIR):
         "directory": config.ARGO_NC_DIR,
         "status": "OK" if files else "WARNING: No files"
     }
-    print(f"  ✓ Found {len(files)} Argo profile files")
+    print(f"  [OK] Found {len(files)} Argo profile files")
 else:
     results["datasets"]["argo"] = {"exists": False, "status": "DIRECTORY NOT FOUND"}
     results["issues"].append(f"Argo directory not found: {config.ARGO_NC_DIR}")
-    print(f"  ✗ Directory not found")
+    print(f"  [FAIL] Directory not found")
 
 print("\n" + "="*60)
 print("SUMMARY:")
 print("="*60)
 for dataset, info in results["datasets"].items():
     status = info.get("status", "UNKNOWN")
-    print(f"{dataset.upper():20} → {status}")
+    print(f"{dataset.upper():20} -> {status}")
 
 if results["issues"]:
     print("\n⚠️  ISSUES FOUND:")

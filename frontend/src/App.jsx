@@ -165,6 +165,16 @@ export default function App() {
     setAuthModalOpen(true);
   };
 
+  const handleAuthSuccess = (user, role) => {
+    setUserRole(role);
+    setAuthModalOpen(false);
+    if (role === 'forecaster') {
+      handleSelectMode('forecaster');
+    } else {
+      handleSelectMode('explore');
+    }
+  };
+
   useEffect(() => {
     api.health()
       .then(() => setApiOnline(true))
