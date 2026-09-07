@@ -15,12 +15,14 @@ import { ARGO_PARAM_COLORS } from "../utils/colormap.js";
  *  - Interactive Click-to-inspect and Coordinate Hover
  */
 
-// SAGAR-DRISHTI operational domain (Indian Ocean: Bay of Bengal + Arabian Sea)
+// SAGAR-DRISHTI operational domain — Indian Peninsula, Bay of Bengal & Arabian Sea
+// Coordinates based on CMEMS dataset coverage (Image 2 bounds)
 const DOMAIN = {
-  south: 4.0,    // Extended slightly south to cover all instruments
-  north: 24.0,   // Extended slightly north
-  west: 59.0,    // Extended slightly west
-  east: 98.0,    // Extended slightly east
+  south: 5.0,      // South tip (Sri Lanka, around 6°N latitude)
+  north: 24.0,     // North (India, around 24°N - Gujarat/West Bengal)
+  west: 66.0,      // West (near Oman coast, Arabian Sea)
+  east: 97.0,      // East (Myanmar coast, Bay of Bengal)
+  // This creates a rectangle: 5-24°N × 66-97°E covering full operational domain
 };
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -64,13 +66,13 @@ export default function OceanMap({
     if (mapRef.current || !mapContainerRef.current) return;
 
     const map = L.map(mapContainerRef.current, {
-      center: [14.0, 78.0],
+      center: [15.0, 80.5],
       zoom: 5,
-      minZoom: 2,        // Allow zooming out to see entire world
-      maxZoom: 18,       // Allow detailed zoom in
+      minZoom: 2,
+      maxZoom: 18,
       zoomControl: false,
       attributionControl: true,
-      maxBounds: undefined,  // Remove bounds to allow world exploration
+      maxBounds: undefined,
       maxBoundsViscosity: 0.0,
     });
 
@@ -99,7 +101,7 @@ export default function OceanMap({
       }
     ).addTo(map);
 
-    // Domain boundary - enhanced visibility on satellite imagery
+    // Domain boundary — dashed border only, no fill (so heatmap colors show through cleanly)
     L.rectangle(
       [
         [DOMAIN.south, DOMAIN.west],
@@ -107,11 +109,10 @@ export default function OceanMap({
       ],
       {
         color: "#00d4f0",
-        weight: 2.5,
-        fill: true,
-        fillColor: "#00d4f0",
-        fillOpacity: 0.12,
-        dashArray: "8 6",
+        weight: 2,
+        fill: false,
+        dashArray: "10 6",
+        interactive: false,
       }
     ).addTo(map);
 
@@ -190,10 +191,20 @@ export default function OceanMap({
 
     for (let latI = 0; latI < nLat; latI++) {
       const row = nLat - 1 - latI;
+      const latVal = lat[latI];
+
       for (let lonJ = 0; lonJ < nLon; lonJ++) {
+        const lonVal = lon[lonJ];
         const val = values[latI]?.[lonJ];
         const idx = (row * nLon + lonJ) * 4;
-        if (val === null || val === undefined) {
+
+        // Only render pixels inside the DOMAIN rectangle
+        const inDomain = (
+          latVal >= DOMAIN.south && latVal <= DOMAIN.north &&
+          lonVal >= DOMAIN.west  && lonVal <= DOMAIN.east
+        );
+
+        if (!inDomain || val === null || val === undefined || isNaN(val)) {
           data[idx] = data[idx + 1] = data[idx + 2] = 0;
           data[idx + 3] = 0;
         } else {
@@ -208,6 +219,7 @@ export default function OceanMap({
     ctx.putImageData(imageData, 0, 0);
 
     const dataUrl = canvas.toDataURL("image/png");
+    // Overlay bounds match the full data extent — transparent pixels handle clipping
     const bounds = L.latLngBounds(
       [lat[0], lon[0]],
       [lat[nLat - 1], lon[nLon - 1]]
@@ -217,7 +229,7 @@ export default function OceanMap({
       map.removeLayer(overlayRef.current);
     }
     const overlay = L.imageOverlay(dataUrl, bounds, {
-      opacity: layerOpacity,
+      opacity: 1.0,      // full opacity on the image; per-pixel alpha handles transparency
       interactive: false,
       zIndex: 300,
     });

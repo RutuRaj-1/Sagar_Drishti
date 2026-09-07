@@ -56,7 +56,7 @@ export default function Scene3D({
   colorScale,
   colorMin,
   colorMax,
-  verticalExaggeration = 1.5,
+  verticalExaggeration = 5.0,  // Default 5x for better terrain visualization
   layerOpacity = 0.85,
   instruments = [],
   gliders = [],

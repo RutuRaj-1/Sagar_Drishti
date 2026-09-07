@@ -4,14 +4,12 @@ import { paletteForVariable, paletteGradientCss, varColor, colorForValue, PALETT
 
 import ControlPanel from "./components/ControlPanel.jsx";
 import OceanMap from "./components/OceanMap.jsx";
-import Scene3D from "./components/Scene3D.jsx"; // kept for backward-compat
-import CesiumRegionalView from "./components/CesiumRegionalView.jsx";
+import Scene3D from "./components/Scene3D.jsx";
 import ProfilePanel from "./components/ProfileChart.jsx";
 import StatsDashboard from "./components/StatsDashboard.jsx";
 import InstrumentSummaryPanel from "./components/InstrumentSummaryPanel.jsx";
 import DatasetHealthDashboard from "./components/DatasetHealthDashboard.jsx";
 import HFRadarRamaExplorer from "./components/HFRadarRamaExplorer.jsx";
-import DepthReadingsPanel from "./components/DepthReadingsPanel.jsx";
 // Static import so Vite bundles Cesium in the same chunk (avoids CJS interop issues with lazy())
 import CesiumGlobeView from "./components/CesiumGlobeView.jsx";
 
@@ -35,9 +33,9 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
 
   // ── Display settings ─────────────────────────────────────────────────────
-  const [viewMode, setViewMode] = useState("map"); // "map" | "3d" | "globe"
+  const [viewMode, setViewMode] = useState("map"); // "map" | "globe" | "webgl"
   const [activeTab, setActiveTab] = useState("viz"); // "viz" | "analytics" | "argo"
-  const [verticalExaggeration, setVerticalExaggeration] = useState(1.5);
+  const [verticalExaggeration, setVerticalExaggeration] = useState(5.0);  // Default 5x for better 3D terrain visibility
   const [layerOpacity, setLayerOpacity] = useState(0.85);
   const [palette, setPalette] = useState("thermal");
   const [colorScale, setColorScale] = useState("linear");
@@ -381,7 +379,7 @@ export default function App() {
           DATASET HEALTH & LIVE PIPELINE TAB
           ═══════════════════════════════════════════════════════ */}
       {activeTab === "pipeline" && (
-        <main style={{ height: "100%", overflowY: "auto", background: "radial-gradient(ellipse at top, #0f172a 0%, #020617 100%)" }}>
+        <main style={{ height: "100%", overflow: "hidden" }}>
           <DatasetHealthDashboard
             datasetStatus={datasetStatus}
             onRefresh={() => api.getDatasetStatus().then(setDatasetStatus)}
@@ -393,7 +391,7 @@ export default function App() {
           HF RADAR & RAMA MOORED BUOY OBSERVATORY TAB
           ═══════════════════════════════════════════════════════ */}
       {activeTab === "hfradar_rama" && (
-        <main style={{ height: "100%", overflowY: "auto", background: "radial-gradient(ellipse at top, #0f172a 0%, #020617 100%)" }}>
+        <main style={{ height: "100%", overflow: "hidden" }}>
           <HFRadarRamaExplorer
             hfRadarStations={hfRadarStations}
             ramaBuoys={ramaBuoys}
@@ -509,60 +507,26 @@ export default function App() {
               />
             )}
 
-            {/* 3D Regional View — Cesium full-Earth with brown/green land & blue water (Tasks 3 & 4) */}
-            {(viewMode === "regional" || viewMode === "3d") && (
-              <CesiumRegionalView
+            {/* 3D WebGL View — Three.js bathymetric terrain with Marching Cubes */}
+            {viewMode === "webgl" && (
+              <Scene3D
                 surface={surface}
                 palette={palette}
                 colorScale={colorScale}
                 colorMin={colorRange?.min}
                 colorMax={colorRange?.max}
+                verticalExaggeration={verticalExaggeration}
                 layerOpacity={layerOpacity}
                 instruments={instruments}
                 gliders={gliders}
-                hfRadarStations={hfRadarStations}
-                ramaBuoys={ramaBuoys}
                 currentVectors={currentVectors}
                 showCurrents={showCurrents}
+                isosurfaceGrid={isosurfaceGrid}
+                showIsosurface={showIsosurface}
+                isovalue={isovalue}
                 onSelectInstrument={setSelectedInstrumentId}
                 selectedInstrumentId={selectedInstrumentId}
               />
-            )}
-
-            {/* 3D WebGL View — Three.js bathymetric terrain with Marching Cubes & DepthReadingsPanel */}
-            {viewMode === "webgl" && (
-              <>
-                <Scene3D
-                  surface={surface}
-                  palette={palette}
-                  colorScale={colorScale}
-                  colorMin={colorRange?.min}
-                  colorMax={colorRange?.max}
-                  verticalExaggeration={verticalExaggeration}
-                  layerOpacity={layerOpacity}
-                  instruments={instruments}
-                  gliders={gliders}
-                  currentVectors={currentVectors}
-                  showCurrents={showCurrents}
-                  isosurfaceGrid={isosurfaceGrid}
-                  showIsosurface={showIsosurface}
-                  isovalue={isovalue}
-                  onSelectInstrument={setSelectedInstrumentId}
-                  selectedInstrumentId={selectedInstrumentId}
-                />
-                {datasetMode === "volumetric" && (
-                  <DepthReadingsPanel
-                    surface={surface}
-                    volumetricMeta={volumetricMeta}
-                    depthIndex={depthIndex}
-                    depthLevels={depthLevels}
-                    palette={palette}
-                    colorScale={colorScale}
-                    colorMin={colorRange?.min}
-                    colorMax={colorRange?.max}
-                  />
-                )}
-              </>
             )}
 
             {/* Cesium 3D Globe View (Google Earth-style) */}
@@ -586,7 +550,7 @@ export default function App() {
             )}
 
 
-            {/* 2D / Globe / 3D Regional / 3D WebGL View Toggles */}
+            {/* 2D / Globe / 3D WebGL View Toggles */}
             <div className="view-toggle" style={{ top: "auto", bottom: 14, right: 14 }}>
               <button
                 className={`view-toggle-btn${viewMode === "map" ? " active" : ""}`}
@@ -599,12 +563,6 @@ export default function App() {
                 onClick={() => setViewMode("globe")}
               >
                 🌍 Globe
-              </button>
-              <button
-                className={`view-toggle-btn${viewMode === "regional" || viewMode === "3d" ? " active" : ""}`}
-                onClick={() => setViewMode("regional")}
-              >
-                🏔️ 3D Regional
               </button>
               <button
                 className={`view-toggle-btn${viewMode === "webgl" ? " active" : ""}`}
@@ -658,7 +616,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right panel: Dual-Line Model vs Observation Chart */}
+          {/* Right panel: Dual-Line Model vs Observation Chart + Depth Readings */}
           <ProfilePanel
             instruments={instruments}
             gliders={gliders}
@@ -671,6 +629,12 @@ export default function App() {
             variable={variable}
             colorRange={colorRange}
             surface={surface}
+            datasetMode={datasetMode}
+            volumetricMeta={volumetricMeta}
+            depthIndex={depthIndex}
+            depthLevels={depthLevels}
+            palette={palette}
+            colorScale={colorScale}
           />
         </main>
       )}

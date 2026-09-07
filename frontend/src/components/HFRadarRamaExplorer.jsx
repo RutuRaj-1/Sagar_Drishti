@@ -1,5 +1,5 @@
 // HFRadarRamaExplorer.jsx — SAGAR-DRISHTI
-// Comprehensive Interactive Explorer for INCOIS Coastal HF Radar & NOAA PMEL RAMA Moored Buoy Array
+// Coastal HF Radar & RAMA Moored Buoy Observatory — Steel Design System, 3-Panel Layout
 import React, { useState, useEffect } from "react";
 import { api } from "../api";
 
@@ -9,14 +9,12 @@ export default function HFRadarRamaExplorer({
   onSelectInstrument,
   selectedId,
 }) {
-  const [activeSubTab, setActiveSubTab] = useState("hfradar"); // "hfradar" | "rama"
+  const [activeSubTab, setActiveSubTab] = useState("hfradar");
   const [selectedStationId, setSelectedStationId] = useState(null);
   const [selectedBuoyId, setSelectedBuoyId] = useState(null);
   const [stationDetails, setStationDetails] = useState(null);
-  const [buoyProfile, setBuoyProfile] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Default selection
   useEffect(() => {
     if (activeSubTab === "hfradar" && hfRadarStations.length > 0 && !selectedStationId) {
       setSelectedStationId(hfRadarStations[0].station_id);
@@ -26,613 +24,421 @@ export default function HFRadarRamaExplorer({
     }
   }, [activeSubTab, hfRadarStations, ramaBuoys, selectedStationId, selectedBuoyId]);
 
-  // Load HF Radar station details
   useEffect(() => {
     if (activeSubTab === "hfradar" && selectedStationId) {
       setLoading(true);
       api.getHFRadarStationDetails(selectedStationId)
-        .then((data) => {
-          setStationDetails(data);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Error loading station:", err);
-          setLoading(false);
-        });
+        .then(setStationDetails)
+        .catch(console.error)
+        .finally(() => setLoading(false));
     }
   }, [activeSubTab, selectedStationId]);
 
-  // Load RAMA buoy profile
-  useEffect(() => {
-    if (activeSubTab === "rama" && selectedBuoyId) {
-      setLoading(true);
-      api.getRAMABuoyProfile(selectedBuoyId, "tob")
-        .then((data) => {
-          setBuoyProfile(data);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Error loading buoy profile:", err);
-          setLoading(false);
-        });
-    }
-  }, [activeSubTab, selectedBuoyId]);
+  const activeStation = hfRadarStations.find(s => s.station_id === selectedStationId) || hfRadarStations[0];
+  const activeBuoy = ramaBuoys.find(b => b.buoy_id === selectedBuoyId) || ramaBuoys[0];
 
-  const activeStation = hfRadarStations.find((s) => s.station_id === selectedStationId) || hfRadarStations[0];
-  const activeBuoy = ramaBuoys.find((b) => b.buoy_id === selectedBuoyId) || ramaBuoys[0];
+  // ── Thermistor rows for a buoy ──────────────────────────────────────────
+  const thermistorRows = activeBuoy ? [
+    { depth: 1,   temp: activeBuoy.sst,             sal: activeBuoy.sss,         layer: "Mixed Layer (Surface)" },
+    { depth: 10,  temp: activeBuoy.sst - 0.1,       sal: activeBuoy.sss,         layer: "Mixed Layer" },
+    { depth: 20,  temp: activeBuoy.sst - 0.2,       sal: activeBuoy.sss + 0.1,   layer: "Mixed Layer Base" },
+    { depth: 40,  temp: activeBuoy.sst - 1.8,       sal: activeBuoy.sss + 0.3,   layer: "Upper Thermocline" },
+    { depth: 60,  temp: activeBuoy.sst - 4.5,       sal: activeBuoy.sss + 0.5,   layer: "Core Thermocline" },
+    { depth: 80,  temp: activeBuoy.sst - 7.8,       sal: activeBuoy.sss + 0.7,   layer: "Core Thermocline (20°C Isotherm)" },
+    { depth: 100, temp: activeBuoy.sst - 11.2,      sal: activeBuoy.sss + 0.8,   layer: "Lower Thermocline" },
+    { depth: 140, temp: 15.8,                        sal: activeBuoy.sss + 0.6,   layer: "Deep Thermocline" },
+    { depth: 200, temp: 14.1,                        sal: activeBuoy.sss + 0.4,   layer: "Sub-thermocline Water" },
+    { depth: 300, temp: 11.6,                        sal: activeBuoy.sss + 0.2,   layer: "Indian Ocean Central Water" },
+    { depth: 500, temp: 9.4,                         sal: activeBuoy.sss,         layer: "Intermediate Deep Water" },
+  ] : [];
+
+  const vectors = (stationDetails?.vectors || activeStation?.vectors || []).slice(0, 20);
 
   return (
-    <div style={styles.container}>
-      {/* ── Top Header Navigation ── */}
-      <div style={styles.topHeader}>
-        <div>
-          <h2 style={styles.title}>
+    <div style={{ display: "grid", gridTemplateColumns: "var(--sidebar-w) 1fr var(--right-w)", height: "100%", overflow: "hidden", background: "var(--steel-50)" }}>
+
+      {/* ══════════════════════════════════════════════════════
+          LEFT PANEL — Station / Buoy Selector List
+          ══════════════════════════════════════════════════════ */}
+      <aside className="panel">
+        {/* Sub-tab toggle */}
+        <div className="panel-section">
+          <div className="profile-tabs" style={{ marginBottom: 14 }}>
+            <button
+              className={`profile-tab${activeSubTab === "hfradar" ? " active" : ""}`}
+              onClick={() => setActiveSubTab("hfradar")}
+            >
+              📡 HF Radar
+            </button>
+            <button
+              className={`profile-tab${activeSubTab === "rama" ? " active" : ""}`}
+              onClick={() => setActiveSubTab("rama")}
+            >
+              ⚓ RAMA Buoys
+            </button>
+          </div>
+        </div>
+
+        {/* HF Radar station list */}
+        {activeSubTab === "hfradar" && (
+          <div className="panel-section">
+            <div className="panel-section-title">
+              <span className="icon">📡</span> Active Stations ({hfRadarStations.length})
+            </div>
+            <ul className="instrument-list">
+              {hfRadarStations.map(st => {
+                const isSel = st.station_id === selectedStationId;
+                return (
+                  <li
+                    key={st.station_id}
+                    className={isSel ? "active" : ""}
+                    onClick={() => setSelectedStationId(st.station_id)}
+                  >
+                    <div className="inst-header">
+                      <span className="tag" style={{ borderColor: "var(--c-salt)", color: "var(--c-salt)", background: "var(--c-salt-bg)" }}>HF</span>
+                      <span className="inst-id">{st.name}</span>
+                      <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 700, color: "var(--good)" }}>● active</span>
+                    </div>
+                    <div className="inst-meta">{st.coast}</div>
+                    <div className="inst-meta" style={{ fontFamily: "var(--font-mono)", marginTop: 2 }}>
+                      📍 {st.latitude}°N, {st.longitude}°E
+                      &nbsp;·&nbsp; 📡 {st.frequency_mhz} MHz
+                      &nbsp;·&nbsp; 📏 {st.range_km} km
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, color: "var(--steel-500)", background: "var(--steel-200)", padding: "4px 7px", borderRadius: "var(--radius)", marginTop: 5 }}>
+                      <span>Avg: <strong style={{ color: "var(--steel-700)" }}>{st.avg_speed || "0.42"} m/s</strong></span>
+                      <span>Max: <strong style={{ color: "var(--steel-700)" }}>{st.max_speed || "0.88"} m/s</strong></span>
+                      <span>Vectors: <strong style={{ color: "var(--steel-700)" }}>{st.n_vectors || 128}</strong></span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {/* RAMA buoy list */}
+        {activeSubTab === "rama" && (
+          <div className="panel-section">
+            <div className="panel-section-title">
+              <span className="icon">⚓</span> Deep Moorings ({ramaBuoys.length})
+            </div>
+            <ul className="instrument-list">
+              {ramaBuoys.map(b => {
+                const isSel = b.buoy_id === selectedBuoyId;
+                return (
+                  <li
+                    key={b.buoy_id}
+                    className={isSel ? "active" : ""}
+                    onClick={() => setSelectedBuoyId(b.buoy_id)}
+                  >
+                    <div className="inst-header">
+                      <span className="tag" style={{ borderColor: "var(--c-chla)", color: "var(--c-chla)", background: "rgba(217,119,6,.08)" }}>RAMA</span>
+                      <span className="inst-id">{b.name}</span>
+                      <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 700, color: "var(--warn)" }}>● active</span>
+                    </div>
+                    <div className="inst-meta">{b.region}</div>
+                    <div className="inst-meta" style={{ fontFamily: "var(--font-mono)", marginTop: 2 }}>
+                      📍 {b.latitude}°N, {b.longitude}°E
+                      &nbsp;·&nbsp; ⚓ {b.mooring_depth_m}m
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, color: "var(--steel-500)", background: "var(--steel-200)", padding: "4px 7px", borderRadius: "var(--radius)", marginTop: 5 }}>
+                      <span>SST: <strong style={{ color: "var(--c-temp)" }}>{b.sst}°C</strong></span>
+                      <span>SSS: <strong style={{ color: "var(--c-salt)" }}>{b.sss} PSU</strong></span>
+                      <span>Wind: <strong style={{ color: "var(--steel-700)" }}>{b.wind_speed_ms} m/s</strong></span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </aside>
+
+      {/* ══════════════════════════════════════════════════════
+          CENTER — Station / Buoy Detail & Data Tables
+          ══════════════════════════════════════════════════════ */}
+      <main style={{ padding: "20px", overflowY: "auto", background: "var(--steel-50)" }}>
+
+        {/* Page header */}
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "var(--steel-800)", fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
             📡 Coastal HF Radar & Deep RAMA Moored Buoy Observatory
           </h2>
-          <p style={styles.subtitle}>
+          <p style={{ margin: 0, fontSize: 11.5, color: "var(--steel-500)", lineHeight: 1.6 }}>
             Continuous in-situ observational networks monitoring coastal surface dynamics and tropical Indian Ocean thermohaline structure.
           </p>
         </div>
 
-        <div style={styles.tabToggle}>
-          <button
-            style={{
-              ...styles.tabBtn,
-              ...(activeSubTab === "hfradar" ? styles.tabBtnActive : {}),
-            }}
-            onClick={() => setActiveSubTab("hfradar")}
-          >
-            🛰️ INCOIS HF Radar ({hfRadarStations.length} Stations)
-          </button>
-          <button
-            style={{
-              ...styles.tabBtn,
-              ...(activeSubTab === "rama" ? styles.tabBtnActive : {}),
-            }}
-            onClick={() => setActiveSubTab("rama")}
-          >
-            ⚓ RAMA Moored Buoys ({ramaBuoys.length} Moorings)
-          </button>
-        </div>
-      </div>
-
-      {/* ════════════════════════════════════════════════════════════════
-          HF RADAR SECTION
-          ════════════════════════════════════════════════════════════════ */}
-      {activeSubTab === "hfradar" && (
-        <div style={styles.mainGrid}>
-          {/* Left Column: Station Selector List */}
-          <div style={styles.sidebar}>
-            <div style={styles.sidebarTitle}>
-              Active Radar Stations ({hfRadarStations.length})
+        {/* ── HF RADAR CONTENT ─────────────────────────────────── */}
+        {activeSubTab === "hfradar" && activeStation && (
+          <>
+            {/* Station banner */}
+            <div className="glass-card" style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <div className="cmems-badge" style={{ marginBottom: 6 }}>
+                  {activeStation.operator || "INCOIS / NIOT Coastal Radar Network"}
+                </div>
+                <h3 style={{ margin: "0 0 5px", fontSize: 17, fontWeight: 700, color: "var(--steel-800)", fontFamily: "var(--font-display)" }}>
+                  {activeStation.name}
+                </h3>
+                <p style={{ margin: 0, fontSize: 11, color: "var(--steel-500)", lineHeight: 1.5 }}>
+                  {activeStation.coast} · {activeStation.state}, India · Real-time Doppler surface current tracking within {activeStation.range_km} km coastal perimeter.
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {[
+                  { label: "Transmit Frequency", val: `${activeStation.frequency_mhz} MHz`, color: "var(--c-ssh)" },
+                  { label: "Radar Range",         val: `${activeStation.range_km} km`,       color: "var(--c-salt)" },
+                  { label: "Active Surface Vectors", val: activeStation.n_vectors || 128,    color: "var(--c-chla)" },
+                ].map(({ label, val, color }) => (
+                  <div key={label} className="kpi-card" style={{ minWidth: 120, "--kpi-color": color }}>
+                    <div className="kpi-label">{label}</div>
+                    <div className="kpi-value" style={{ fontSize: 18 }}>{val}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div style={styles.stationList}>
-              {hfRadarStations.map((st) => {
-                const isSelected = st.station_id === selectedStationId;
-                return (
-                  <div
-                    key={st.station_id}
-                    style={{
-                      ...styles.stationCard,
-                      ...(isSelected ? styles.stationCardActive : {}),
-                    }}
-                    onClick={() => setSelectedStationId(st.station_id)}
-                  >
-                    <div style={styles.stationHeader}>
-                      <span style={styles.stationName}>{st.name}</span>
-                      <span style={styles.stationStatus}>● {st.status}</span>
-                    </div>
-                    <div style={styles.stationCoast}>{st.coast}</div>
-                    <div style={styles.stationMeta}>
-                      <span>📍 {st.latitude}°N, {st.longitude}°E</span>
-                      <span>📡 {st.frequency_mhz} MHz</span>
-                      <span>📏 {st.range_km} km</span>
-                    </div>
-                    <div style={styles.stationMetricRow}>
-                      <span>Avg: <strong>{st.avg_speed || 0.42} m/s</strong></span>
-                      <span>Max: <strong>{st.max_speed || 0.88} m/s</strong></span>
-                      <span>Vectors: <strong>{st.n_vectors || 128}</strong></span>
-                    </div>
+
+            {/* Vector field table */}
+            <div className="glass-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div>
+                  <div className="chart-title">🌊 High-Density Surface Velocity Vector Field (Sample Grid)</div>
+                  <div className="chart-subtitle">
+                    Observed at {activeStation.last_updated || "2026-09-06T12:00:00Z"} (Quality Flag 1: Good)
                   </div>
-                );
-              })}
+                </div>
+                {loading && <div className="loading-spinner" style={{ width: 22, height: 22, borderWidth: 2 }} />}
+              </div>
+
+              <div style={{ overflowX: "auto", maxHeight: 380, overflowY: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ background: "var(--steel-200)", borderBottom: "2px solid var(--steel-300)" }}>
+                      {["Latitude", "Longitude", "Current Speed (m/s)", "Direction (°)", "u (Eastward)", "v (Northward)", "Quality"].map(h => (
+                        <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--steel-600)", fontFamily: "var(--font-display)", whiteSpace: "nowrap" }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vectors.map((v, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid var(--steel-200)", background: i % 2 === 0 ? "var(--steel-50)" : "var(--steel-100)" }}>
+                        <td style={{ padding: "7px 10px", fontFamily: "var(--font-mono)", fontSize: 11 }}>{v.latitude?.toFixed(3)}°N</td>
+                        <td style={{ padding: "7px 10px", fontFamily: "var(--font-mono)", fontSize: 11 }}>{v.longitude?.toFixed(3)}°E</td>
+                        <td style={{ padding: "7px 10px", fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--c-ssh)" }}>{v.speed?.toFixed(3)} m/s</td>
+                        <td style={{ padding: "7px 10px", fontFamily: "var(--font-mono)", fontSize: 11 }}>{v.direction_deg}°</td>
+                        <td style={{ padding: "7px 10px", fontFamily: "var(--font-mono)", fontSize: 11 }}>{v.u?.toFixed(3)}</td>
+                        <td style={{ padding: "7px 10px", fontFamily: "var(--font-mono)", fontSize: 11 }}>{v.v?.toFixed(3)}</td>
+                        <td style={{ padding: "7px 10px" }}>
+                          <span className="tag" style={{ color: "var(--good)", borderColor: "var(--good)60", background: "var(--good-bg)", fontSize: 9 }}>
+                            ✓ Verified (QC 1)
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {vectors.length === 0 && (
+                      <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "var(--steel-400)", fontSize: 11 }}>No vector data available for this station.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          </>
+        )}
 
-          {/* Right Column: Station Telemetry & Vectors Grid */}
-          <div style={styles.content}>
-            {activeStation && (
-              <>
-                {/* Station Overview Banner */}
-                <div style={styles.banner}>
-                  <div style={{ flex: 1 }}>
-                    <div style={styles.badge}>{activeStation.operator || "INCOIS / NIOT Radar Network"}</div>
-                    <h3 style={styles.bannerTitle}>{activeStation.name}</h3>
-                    <p style={styles.bannerDesc}>
-                      {activeStation.coast} · {activeStation.state}, India · Real-time Doppler surface current tracking within {activeStation.range_km} km coastal perimeter.
-                    </p>
-                  </div>
-                  <div style={styles.statPills}>
-                    <div style={styles.pill}>
-                      <div style={styles.pillLabel}>Transmit Frequency</div>
-                      <div style={styles.pillVal}>{activeStation.frequency_mhz} MHz</div>
-                    </div>
-                    <div style={styles.pill}>
-                      <div style={styles.pillLabel}>Radar Range</div>
-                      <div style={styles.pillVal}>{activeStation.range_km} km</div>
-                    </div>
-                    <div style={styles.pill}>
-                      <div style={styles.pillLabel}>Active Surface Vectors</div>
-                      <div style={styles.pillVal}>{activeStation.n_vectors || 128}</div>
-                    </div>
-                  </div>
+        {/* ── RAMA BUOY CONTENT ─────────────────────────────────── */}
+        {activeSubTab === "rama" && activeBuoy && (
+          <>
+            {/* Buoy banner */}
+            <div className="glass-card" style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <div className="argo-badge" style={{ marginBottom: 6 }}>
+                  {activeBuoy.institution || "INCOIS / NOAA PMEL Joint Array"}
                 </div>
-
-                {/* Real-Time Vectors Table */}
-                <div style={styles.tableCard}>
-                  <div style={styles.tableHeader}>
-                    <h4>🌊 High-Density Surface Velocity Vector Field (Sample Grid)</h4>
-                    <span style={styles.subtext}>
-                      Observed at {activeStation.last_updated || "2026-09-06T12:00:00Z"} (Quality Flag 1: Good)
-                    </span>
+                <h3 style={{ margin: "0 0 5px", fontSize: 17, fontWeight: 700, color: "var(--steel-800)", fontFamily: "var(--font-display)" }}>
+                  {activeBuoy.name}
+                </h3>
+                <p style={{ margin: 0, fontSize: 11, color: "var(--steel-500)", lineHeight: 1.5 }}>
+                  {activeBuoy.region} · Mooring Depth: {activeBuoy.mooring_depth_m} m · Deployed: {activeBuoy.deployed_date}
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {[
+                  { label: "Sea Surface Temp",     val: `${activeBuoy.sst} °C`,  color: "var(--c-temp)" },
+                  { label: "Sea Surface Salinity", val: `${activeBuoy.sss} PSU`, color: "var(--c-salt)" },
+                  { label: "Mixed Layer Depth",    val: `${activeBuoy.mld_m || 35} m`,   color: "var(--c-mld)" },
+                  { label: "Thermocline (20°C)",   val: `${activeBuoy.thermocline_depth_m || 85} m`, color: "var(--c-chla)" },
+                ].map(({ label, val, color }) => (
+                  <div key={label} className="kpi-card" style={{ minWidth: 110, "--kpi-color": color }}>
+                    <div className="kpi-label">{label}</div>
+                    <div className="kpi-value" style={{ fontSize: 16 }}>{val}</div>
                   </div>
-
-                  <div style={styles.tableWrapper}>
-                    <table style={styles.table}>
-                      <thead>
-                        <tr>
-                          <th>Latitude</th>
-                          <th>Longitude</th>
-                          <th>Current Speed (m/s)</th>
-                          <th>Direction (°)</th>
-                          <th>u (Eastward)</th>
-                          <th>v (Northward)</th>
-                          <th>Quality</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(stationDetails?.vectors || activeStation.vectors || []).slice(0, 20).map((v, i) => (
-                          <tr key={i}>
-                            <td style={styles.mono}>{v.latitude.toFixed(3)}°N</td>
-                            <td style={styles.mono}>{v.longitude.toFixed(3)}°E</td>
-                            <td style={{ ...styles.mono, color: "#38bdf8", fontWeight: "600" }}>
-                              {v.speed.toFixed(3)} m/s
-                            </td>
-                            <td style={styles.mono}>{v.direction_deg}°</td>
-                            <td style={styles.mono}>{v.u.toFixed(3)}</td>
-                            <td style={styles.mono}>{v.v.toFixed(3)}</td>
-                            <td>
-                              <span style={styles.tagValid}>Verified (QC 1)</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ════════════════════════════════════════════════════════════════
-          RAMA MOORED BUOY ARRAY SECTION
-          ════════════════════════════════════════════════════════════════ */}
-      {activeSubTab === "rama" && (
-        <div style={styles.mainGrid}>
-          {/* Left Column: Buoy Selector List */}
-          <div style={styles.sidebar}>
-            <div style={styles.sidebarTitle}>
-              RAMA Deep Moorings ({ramaBuoys.length})
+                ))}
+              </div>
             </div>
-            <div style={styles.stationList}>
-              {ramaBuoys.map((b) => {
-                const isSelected = b.buoy_id === selectedBuoyId;
-                return (
-                  <div
-                    key={b.buoy_id}
-                    style={{
-                      ...styles.stationCard,
-                      ...(isSelected ? styles.stationCardActive : {}),
-                    }}
-                    onClick={() => setSelectedBuoyId(b.buoy_id)}
-                  >
-                    <div style={styles.stationHeader}>
-                      <span style={styles.stationName}>{b.name}</span>
-                      <span style={{ ...styles.stationStatus, color: "#f59e0b" }}>● Active</span>
-                    </div>
-                    <div style={styles.stationCoast}>{b.region}</div>
-                    <div style={styles.stationMeta}>
-                      <span>📍 {b.latitude}°N, {b.longitude}°E</span>
-                      <span>⚓ Depth: {b.mooring_depth_m}m</span>
-                    </div>
-                    <div style={styles.stationMetricRow}>
-                      <span>SST: <strong>{b.sst}°C</strong></span>
-                      <span>SSS: <strong>{b.sss} PSU</strong></span>
-                      <span>Wind: <strong>{b.wind_speed_ms} m/s</strong></span>
-                    </div>
-                  </div>
-                );
-              })}
+
+            {/* Met-ocean 4-column strip */}
+            <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
+              {[
+                { label: "Air Temperature",        val: `${activeBuoy.air_temp || 28.2} °C`,                                color: "var(--c-temp)" },
+                { label: "Wind Speed & Direction", val: `${activeBuoy.wind_speed_ms || 7.4} m/s @ ${activeBuoy.wind_direction_deg || 225}°`, color: "var(--c-ssh)" },
+                { label: "Barometric Pressure",    val: `${activeBuoy.barometric_pressure_hpa || 1008.4} hPa`,              color: "var(--c-mld)" },
+                { label: "Last Transmitted",       val: (activeBuoy.last_observation_time || "2026-09-06T12:00:00Z").replace("T", " ").replace("Z", ""), color: "var(--steel-600)" },
+              ].map(({ label, val, color }) => (
+                <div key={label} className="kpi-card" style={{ "--kpi-color": color }}>
+                  <div className="kpi-label">{label}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color, fontFamily: "var(--font-mono)", marginTop: 4, lineHeight: 1.3 }}>{val}</div>
+                </div>
+              ))}
             </div>
-          </div>
 
-          {/* Right Column: Buoy Telemetry & Thermistor Depth Profile */}
-          <div style={styles.content}>
-            {activeBuoy && (
-              <>
-                {/* Buoy Overview Banner */}
-                <div style={styles.banner}>
-                  <div style={{ flex: 1 }}>
-                    <div style={styles.badge}>{activeBuoy.institution || "INCOIS / NOAA PMEL Joint Array"}</div>
-                    <h3 style={styles.bannerTitle}>{activeBuoy.name}</h3>
-                    <p style={styles.bannerDesc}>
-                      {activeBuoy.region} · Mooring Depth: {activeBuoy.mooring_depth_m} m · Deployed: {activeBuoy.deployed_date} · Transmitting real-time surface meteorology and subsurface thermistor strings.
-                    </p>
-                  </div>
-                  <div style={styles.statPills}>
-                    <div style={styles.pill}>
-                      <div style={styles.pillLabel}>Sea Surface Temp</div>
-                      <div style={{ ...styles.pillVal, color: "#ff6b6b" }}>{activeBuoy.sst} °C</div>
-                    </div>
-                    <div style={styles.pill}>
-                      <div style={styles.pillLabel}>Sea Surface Salinity</div>
-                      <div style={{ ...styles.pillVal, color: "#4ecdc4" }}>{activeBuoy.sss} PSU</div>
-                    </div>
-                    <div style={styles.pill}>
-                      <div style={styles.pillLabel}>Mixed Layer Depth</div>
-                      <div style={styles.pillVal}>{activeBuoy.mld_m || 35.0} m</div>
-                    </div>
-                    <div style={styles.pill}>
-                      <div style={styles.pillLabel}>Thermocline (20°C)</div>
-                      <div style={styles.pillVal}>{activeBuoy.thermocline_depth_m || 85.0} m</div>
-                    </div>
-                  </div>
+            {/* Thermistor depth profile table */}
+            <div className="glass-card">
+              <div className="chart-title" style={{ marginBottom: 4 }}>
+                🌡️ Subsurface Thermistor String Profile (T &amp; S vs Depth)
+              </div>
+              <div className="chart-subtitle" style={{ marginBottom: 14 }}>
+                Sensors clamped to mooring line from 1m to 500m depth
+              </div>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ background: "var(--steel-200)", borderBottom: "2px solid var(--steel-300)" }}>
+                      {["Sensor Depth (m)", "In-Situ Temperature (°C)", "In-Situ Salinity (PSU)", "Layer Classification", "Status"].map(h => (
+                        <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--steel-600)", fontFamily: "var(--font-display)", whiteSpace: "nowrap" }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {thermistorRows.map((row, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid var(--steel-200)", background: i % 2 === 0 ? "var(--steel-50)" : "var(--steel-100)" }}>
+                        <td style={{ padding: "7px 10px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--steel-800)" }}>{row.depth} m</td>
+                        <td style={{ padding: "7px 10px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--c-temp)" }}>{row.temp.toFixed(2)} °C</td>
+                        <td style={{ padding: "7px 10px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--c-salt)" }}>{row.sal.toFixed(2)} PSU</td>
+                        <td style={{ padding: "7px 10px", fontSize: 10, color: "var(--steel-500)" }}>{row.layer}</td>
+                        <td style={{ padding: "7px 10px" }}>
+                          <span className="tag" style={{ color: "var(--good)", borderColor: "var(--good)60", background: "var(--good-bg)", fontSize: 9 }}>
+                            ✓ Transmitting
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+      </main>
+
+      {/* ══════════════════════════════════════════════════════
+          RIGHT PANEL — Summary Telemetry & Scientific Context
+          ══════════════════════════════════════════════════════ */}
+      <aside className="panel" style={{ borderLeft: "2px solid var(--steel-300)", borderRight: "none" }}>
+
+        {activeSubTab === "hfradar" && activeStation && (
+          <>
+            <div className="panel-section">
+              <div className="panel-section-title"><span className="icon">📍</span> Station Summary</div>
+              <div className="glass-card" style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "var(--steel-800)", fontFamily: "var(--font-display)", marginBottom: 6 }}>
+                  {activeStation.name}
                 </div>
-
-                {/* Met-Ocean Telemetry Bar */}
-                <div style={styles.metGrid}>
-                  <div style={styles.metCard}>
-                    <div style={styles.metLabel}>Air Temperature</div>
-                    <div style={styles.metVal}>{activeBuoy.air_temp || 28.2} °C</div>
-                  </div>
-                  <div style={styles.metCard}>
-                    <div style={styles.metLabel}>Wind Speed & Dir</div>
-                    <div style={styles.metVal}>
-                      {activeBuoy.wind_speed_ms || 7.4} m/s @ {activeBuoy.wind_direction_deg || 225}°
-                    </div>
-                  </div>
-                  <div style={styles.metCard}>
-                    <div style={styles.metLabel}>Barometric Pressure</div>
-                    <div style={styles.metVal}>{activeBuoy.barometric_pressure_hpa || 1008.4} hPa</div>
-                  </div>
-                  <div style={styles.metCard}>
-                    <div style={styles.metLabel}>Last Transmitted</div>
-                    <div style={{ ...styles.metVal, fontSize: "0.85rem" }}>
-                      {activeBuoy.last_observation_time || "2026-09-06T12:00:00Z"}
-                    </div>
-                  </div>
+                <div className="inst-meta">{activeStation.coast}</div>
+                <div className="inst-meta" style={{ fontFamily: "var(--font-mono)", marginTop: 4 }}>
+                  📍 {activeStation.latitude}°N, {activeStation.longitude}°E
                 </div>
+              </div>
 
-                {/* Subsurface Thermistor Profile Table & Chart Data */}
-                <div style={styles.tableCard}>
-                  <div style={styles.tableHeader}>
-                    <h4>🌡️ Subsurface Thermistor String Profile (T & S vs Depth)</h4>
-                    <span style={styles.subtext}>
-                      Sensors clamped to mooring line from 1m down to 500m depth
-                    </span>
-                  </div>
-
-                  <div style={styles.tableWrapper}>
-                    <table style={styles.table}>
-                      <thead>
-                        <tr>
-                          <th>Sensor Depth (m)</th>
-                          <th>In-Situ Temperature (°C)</th>
-                          <th>In-Situ Salinity (PSU)</th>
-                          <th>Layer Classification</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {([
-                          { depth: 1.0, temp: activeBuoy.sst, sal: activeBuoy.sss, layer: "Mixed Layer (Surface)" },
-                          { depth: 10.0, temp: activeBuoy.sst - 0.1, sal: activeBuoy.sss, layer: "Mixed Layer" },
-                          { depth: 20.0, temp: activeBuoy.sst - 0.2, sal: activeBuoy.sss + 0.1, layer: "Mixed Layer Base" },
-                          { depth: 40.0, temp: activeBuoy.sst - 1.8, sal: activeBuoy.sss + 0.3, layer: "Upper Thermocline" },
-                          { depth: 60.0, temp: activeBuoy.sst - 4.5, sal: activeBuoy.sss + 0.5, layer: "Core Thermocline" },
-                          { depth: 80.0, temp: activeBuoy.sst - 7.8, sal: activeBuoy.sss + 0.7, layer: "Core Thermocline (20°C Isotherm)" },
-                          { depth: 100.0, temp: activeBuoy.sst - 11.2, sal: activeBuoy.sss + 0.8, layer: "Lower Thermocline" },
-                          { depth: 140.0, temp: 15.8, sal: activeBuoy.sss + 0.6, layer: "Deep Thermocline" },
-                          { depth: 200.0, temp: 14.1, sal: activeBuoy.sss + 0.4, layer: "Sub-thermocline Water" },
-                          { depth: 300.0, temp: 11.6, sal: activeBuoy.sss + 0.2, layer: "Indian Ocean Central Water" },
-                          { depth: 500.0, temp: 9.4, sal: activeBuoy.sss, layer: "Intermediate Deep Water" },
-                        ]).map((row, i) => (
-                          <tr key={i}>
-                            <td style={{ ...styles.mono, fontWeight: "600" }}>{row.depth} m</td>
-                            <td style={{ ...styles.mono, color: "#ff6b6b", fontWeight: "600" }}>
-                              {row.temp.toFixed(2)} °C
-                            </td>
-                            <td style={{ ...styles.mono, color: "#4ecdc4", fontWeight: "600" }}>
-                              {row.sal.toFixed(2)} PSU
-                            </td>
-                            <td style={{ fontSize: "0.8rem", color: "#94a3b8" }}>{row.layer}</td>
-                            <td>
-                              <span style={styles.tagValid}>Transmitting</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+              <div className="kpi-grid">
+                <div className="kpi-card" style={{ "--kpi-color": "var(--c-salt)" }}>
+                  <div className="kpi-label">Frequency</div>
+                  <div className="kpi-value" style={{ fontSize: 16 }}>{activeStation.frequency_mhz} MHz</div>
                 </div>
-              </>
-            )}
+                <div className="kpi-card" style={{ "--kpi-color": "var(--c-ssh)" }}>
+                  <div className="kpi-label">Range</div>
+                  <div className="kpi-value" style={{ fontSize: 16 }}>{activeStation.range_km} km</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="panel-section">
+              <div className="panel-section-title"><span className="icon">🌊</span> Scientific Context</div>
+              <div className="info-box">
+                <div className="info-title">HF Radar Technology</div>
+                High-Frequency radar systems measure ocean surface currents by Bragg scattering of radio waves from ocean surface gravity waves. Typical radial velocity resolution: ±0.02 m/s.
+              </div>
+              <div className="info-box">
+                <div className="info-title">INCOIS Network Role</div>
+                6 coastal stations provide real-time surface current maps for maritime safety, search-and-rescue, and Bay of Bengal / Arabian Sea circulation monitoring.
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeSubTab === "rama" && activeBuoy && (
+          <>
+            <div className="panel-section">
+              <div className="panel-section-title"><span className="icon">⚓</span> Buoy Summary</div>
+              <div className="glass-card" style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "var(--steel-800)", fontFamily: "var(--font-display)", marginBottom: 6 }}>
+                  {activeBuoy.name}
+                </div>
+                <div className="inst-meta">{activeBuoy.region}</div>
+                <div className="inst-meta" style={{ fontFamily: "var(--font-mono)", marginTop: 4 }}>
+                  📍 {activeBuoy.latitude}°N, {activeBuoy.longitude}°E
+                  <br />⚓ Mooring: {activeBuoy.mooring_depth_m} m
+                </div>
+              </div>
+
+              <div className="kpi-grid">
+                <div className="kpi-card" style={{ "--kpi-color": "var(--c-temp)" }}>
+                  <div className="kpi-label">SST</div>
+                  <div className="kpi-value" style={{ fontSize: 18 }}>{activeBuoy.sst} °C</div>
+                </div>
+                <div className="kpi-card" style={{ "--kpi-color": "var(--c-salt)" }}>
+                  <div className="kpi-label">SSS</div>
+                  <div className="kpi-value" style={{ fontSize: 18 }}>{activeBuoy.sss}</div>
+                  <div className="kpi-unit">PSU</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="panel-section">
+              <div className="panel-section-title"><span className="icon">🌊</span> Scientific Context</div>
+              <div className="info-box">
+                <div className="info-title">RAMA Array Role</div>
+                Research Moored Array for African-Asian-Australian Monsoon Analysis. Provides continuous subsurface T/S profiles critical for Indian Ocean monsoon prediction.
+              </div>
+              <div className="info-box">
+                <div className="info-title">Thermocline Structure</div>
+                Tropical Indian Ocean thermocline is at {activeBuoy.thermocline_depth_m || 85}m. Mixed Layer Depth: {activeBuoy.mld_m || 35}m — key for cyclone intensity forecasting and fisheries.
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="panel-section">
+          <div className="panel-section-title"><span className="icon">📊</span> Network Summary</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {[
+              { label: "HF Radar Stations", val: hfRadarStations.length, color: "var(--c-salt)" },
+              { label: "RAMA Moorings",     val: ramaBuoys.length,      color: "var(--c-chla)" },
+              { label: "Total Active",      val: hfRadarStations.length + ramaBuoys.length, color: "var(--good)" },
+            ].map(({ label, val, color }) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 10px", background: "var(--steel-50)", border: "2px solid var(--steel-300)", borderRadius: "var(--radius)" }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--steel-700)", fontFamily: "var(--font-display)" }}>{label}</span>
+                <span style={{ fontSize: 16, fontWeight: 800, color, fontFamily: "var(--font-display)" }}>{val}</span>
+              </div>
+            ))}
           </div>
         </div>
-      )}
+      </aside>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    padding: "24px",
-    maxWidth: "1440px",
-    margin: "0 auto",
-    color: "#f1f5f9",
-  },
-  topHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "16px",
-    marginBottom: "20px",
-    background: "rgba(15, 23, 42, 0.8)",
-    backdropFilter: "blur(12px)",
-    padding: "18px 24px",
-    borderRadius: "12px",
-    border: "1px solid rgba(255, 255, 255, 0.08)",
-  },
-  title: {
-    margin: "0 0 4px 0",
-    fontSize: "1.3rem",
-    fontWeight: "700",
-    color: "#ffffff",
-  },
-  subtitle: {
-    margin: 0,
-    fontSize: "0.85rem",
-    color: "#94a3b8",
-  },
-  tabToggle: {
-    display: "flex",
-    gap: "8px",
-    background: "rgba(0, 0, 0, 0.3)",
-    padding: "4px",
-    borderRadius: "8px",
-    border: "1px solid rgba(255, 255, 255, 0.06)",
-  },
-  tabBtn: {
-    background: "transparent",
-    border: "none",
-    color: "#94a3b8",
-    padding: "8px 16px",
-    borderRadius: "6px",
-    fontSize: "0.82rem",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-  },
-  tabBtnActive: {
-    background: "linear-gradient(135deg, #0284c7, #0369a1)",
-    color: "#ffffff",
-    boxShadow: "0 2px 8px rgba(2, 132, 199, 0.4)",
-  },
-  mainGrid: {
-    display: "grid",
-    gridTemplateColumns: "360px 1fr",
-    gap: "20px",
-  },
-  sidebar: {
-    background: "rgba(15, 23, 42, 0.8)",
-    backdropFilter: "blur(10px)",
-    borderRadius: "12px",
-    border: "1px solid rgba(255, 255, 255, 0.08)",
-    padding: "16px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-    maxHeight: "calc(100vh - 180px)",
-    overflowY: "auto",
-  },
-  sidebarTitle: {
-    fontSize: "0.85rem",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-    color: "#94a3b8",
-  },
-  stationList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-  },
-  stationCard: {
-    background: "rgba(255, 255, 255, 0.03)",
-    border: "1px solid rgba(255, 255, 255, 0.06)",
-    borderRadius: "8px",
-    padding: "12px",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  stationCardActive: {
-    background: "rgba(2, 132, 199, 0.15)",
-    borderColor: "#0284c7",
-    boxShadow: "0 0 12px rgba(2, 132, 199, 0.3)",
-  },
-  stationHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  stationName: {
-    fontSize: "0.95rem",
-    fontWeight: "600",
-    color: "#f8fafc",
-  },
-  stationStatus: {
-    fontSize: "0.72rem",
-    color: "#34d399",
-    fontWeight: "600",
-  },
-  stationCoast: {
-    fontSize: "0.75rem",
-    color: "#94a3b8",
-  },
-  stationMeta: {
-    display: "flex",
-    gap: "8px",
-    fontSize: "0.72rem",
-    color: "#cbd5e1",
-    flexWrap: "wrap",
-  },
-  stationMetricRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: "0.72rem",
-    color: "#94a3b8",
-    background: "rgba(0, 0, 0, 0.2)",
-    padding: "6px 8px",
-    borderRadius: "4px",
-    marginTop: "4px",
-  },
-  content: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-  },
-  banner: {
-    background: "linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8))",
-    border: "1px solid rgba(255, 255, 255, 0.08)",
-    borderRadius: "12px",
-    padding: "20px 24px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "20px",
-  },
-  badge: {
-    display: "inline-block",
-    fontSize: "0.72rem",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    background: "rgba(14, 165, 233, 0.15)",
-    color: "#38bdf8",
-    padding: "2px 8px",
-    borderRadius: "4px",
-    marginBottom: "6px",
-  },
-  bannerTitle: {
-    margin: "0 0 6px 0",
-    fontSize: "1.25rem",
-    fontWeight: "700",
-    color: "#ffffff",
-  },
-  bannerDesc: {
-    margin: 0,
-    fontSize: "0.85rem",
-    color: "#94a3b8",
-    maxWidth: "600px",
-    lineHeight: "1.5",
-  },
-  statPills: {
-    display: "flex",
-    gap: "12px",
-    flexWrap: "wrap",
-  },
-  pill: {
-    background: "rgba(0, 0, 0, 0.3)",
-    border: "1px solid rgba(255, 255, 255, 0.06)",
-    padding: "10px 14px",
-    borderRadius: "8px",
-    minWidth: "120px",
-  },
-  pillLabel: {
-    fontSize: "0.7rem",
-    color: "#94a3b8",
-    textTransform: "uppercase",
-    marginBottom: "4px",
-  },
-  pillVal: {
-    fontSize: "1.05rem",
-    fontWeight: "700",
-    color: "#f8fafc",
-  },
-  metGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: "12px",
-  },
-  metCard: {
-    background: "rgba(15, 23, 42, 0.7)",
-    border: "1px solid rgba(255, 255, 255, 0.06)",
-    padding: "14px",
-    borderRadius: "8px",
-  },
-  metLabel: {
-    fontSize: "0.72rem",
-    color: "#94a3b8",
-    textTransform: "uppercase",
-    marginBottom: "4px",
-  },
-  metVal: {
-    fontSize: "1.05rem",
-    fontWeight: "600",
-    color: "#38bdf8",
-  },
-  tableCard: {
-    background: "rgba(15, 23, 42, 0.8)",
-    border: "1px solid rgba(255, 255, 255, 0.08)",
-    borderRadius: "12px",
-    padding: "18px",
-  },
-  tableHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "14px",
-  },
-  subtext: {
-    fontSize: "0.75rem",
-    color: "#94a3b8",
-  },
-  tableWrapper: {
-    overflowX: "auto",
-    maxHeight: "380px",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    fontSize: "0.82rem",
-    textAlign: "left",
-  },
-  mono: {
-    fontFamily: "monospace",
-  },
-  tagValid: {
-    display: "inline-block",
-    fontSize: "0.7rem",
-    color: "#34d399",
-    background: "rgba(16, 185, 129, 0.15)",
-    border: "1px solid rgba(52, 211, 153, 0.4)",
-    padding: "2px 6px",
-    borderRadius: "4px",
-  },
-};

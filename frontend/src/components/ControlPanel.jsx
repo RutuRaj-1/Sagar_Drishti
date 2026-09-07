@@ -35,7 +35,7 @@ export default function ControlPanel({
   onToggleIsosurface,
   isovalue = 28.0,
   onIsovalueChange,
-  verticalExaggeration = 1.5,
+  verticalExaggeration = 5.0,  // Default 5x for visible 3D terrain features
   onVerticalExaggerationChange,
   layerOpacity = 0.85,
   onLayerOpacityChange,
@@ -308,10 +308,13 @@ export default function ControlPanel({
               <span className="val">{verticalExaggeration.toFixed(1)}×</span>
             </label>
             <input
-              type="range" min="0.2" max="5" step="0.1"
+              type="range" min="0" max="10" step="0.1"
               value={verticalExaggeration}
               onChange={(e) => onVerticalExaggerationChange(parseFloat(e.target.value))}
             />
+            <div style={{ fontSize: 8.5, color: "var(--steel-500)", marginTop: 4 }}>
+              Adjust terrain height: 0 (flat) → 10 (extreme)
+            </div>
           </div>
           <div className="field">
             <label>
