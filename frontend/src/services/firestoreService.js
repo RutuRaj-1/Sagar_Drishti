@@ -3,14 +3,11 @@
 
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serverTimestamp } from "firebase/firestore";
 import { app } from "./firebase.js";
+import { ADMIN_EMAILS, isAdminEmail } from "./adminEmails.js";
+
+export { ADMIN_EMAILS, isAdminEmail };
 
 export const db = getFirestore(app);
-
-// Admin emails — these users always get 'admin' role on first sign-in
-export const ADMIN_EMAILS = [
-  // Add your admin gmail(s) here, e.g.: "youradmin@gmail.com"
-  // Leave empty to configure via Firestore only
-];
 
 // Helper for Firestore operations with a strict 1500ms timeout
 // Prevents unprovisioned Firestore / offline WebChannel from freezing login
@@ -24,11 +21,12 @@ const withTimeout = (promise, ms = 1500) => {
 /**
  * Ensure a user document exists in Firestore.
  * If it doesn't exist, creates it with default role 'student'.
- * If it exists, does NOT overwrite the role (preserves admin assignments).
+ * If it exists, does NOT overwrite the role (preserves admin assignments),
+ * except for ADMIN_EMAILS which are always promoted to 'admin'.
  * Always returns within 1.5s max to prevent UI freeze.
  */
 export const ensureUserDoc = async (uid, email, displayName = "") => {
-  const isAdmin = ADMIN_EMAILS.includes((email || "").toLowerCase());
+  const isAdmin = isAdminEmail(email);
   const fallbackRole = isAdmin ? "admin" : "student";
 
   try {
@@ -53,6 +51,10 @@ export const ensureUserDoc = async (uid, email, displayName = "") => {
           email: email || snap.data().email || "",
           updatedAt: serverTimestamp(),
         }).catch(() => {});
+        if (isAdmin && snap.data().role !== "admin") {
+          updateDoc(userRef, { role: "admin", updatedAt: serverTimestamp() }).catch(() => {});
+          return "admin";
+        }
         return snap.data().role || fallbackRole;
       }
     })(), 1500);
@@ -68,7 +70,8 @@ export const ensureUserDoc = async (uid, email, displayName = "") => {
  * Get the role for a user from Firestore.
  * Returns 'student' as a safe default if not found.
  */
-export const getUserRole = async (uid) => {
+export const getUserRole = async (uid, email = "") => {
+  if (isAdminEmail(email)) return "admin";
   try {
     return await withTimeout((async () => {
       const snap = await getDoc(doc(db, "users", uid));

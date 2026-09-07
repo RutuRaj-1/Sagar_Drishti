@@ -18,7 +18,7 @@ const UserHeaderMenu = ({ currentMode, onNavigateMode, onOpenAuth, onLogoutSucce
       <div className="header-mode-indicator">
         <span className="mode-dot">●</span>
         <span className="mode-name">
-          {currentMode === 'explore' ? 'Student Workspace' : 'Forecaster Console'}
+          {currentMode === 'explore' ? 'Student Workspace' : currentMode === 'admin' ? 'Admin Console' : 'Forecaster Console'}
         </span>
       </div>
 

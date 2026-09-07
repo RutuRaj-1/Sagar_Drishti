@@ -26,6 +26,16 @@ DEMO_USERS = {
     }
 }
 
+# Admins authenticate through Firebase on the frontend; no local password entry.
+ADMIN_PROFILE = {
+    "username": "admin",
+    "name": "System Administrator",
+    "role": "admin",
+    "email": "bhomeruturaj@gmail.com",
+    "avatar": "\U0001f6e1\ufe0f",
+    "title": "System Administrator"
+}
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -79,7 +89,7 @@ def logout():
 
 @router.get("/me")
 def get_current_user(x_user_role: Optional[str] = Header(None, alias="X-User-Role")):
-    role = x_user_role if x_user_role in ["student", "forecaster"] else "guest"
+    role = x_user_role if x_user_role in ["student", "forecaster", "admin"] else "guest"
     if role == "guest":
         return {
             "authenticated": False,
@@ -93,7 +103,7 @@ def get_current_user(x_user_role: Optional[str] = Header(None, alias="X-User-Rol
             }
         }
     
-    user_data = DEMO_USERS.get(role, DEMO_USERS["student"])
+    user_data = ADMIN_PROFILE if role == "admin" else DEMO_USERS.get(role, DEMO_USERS["student"])
     return {
         "authenticated": True,
         "user": {
