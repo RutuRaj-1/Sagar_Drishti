@@ -121,6 +121,8 @@ export default function App() {
     ) {
       setCurrentView("forecaster");
       setActiveTab("forecaster");
+    } else if (hash === "#admin" || pathname.includes("/admin")) {
+      setCurrentView("admin");
     } else {
       setCurrentView("landing");
     }
@@ -466,7 +468,7 @@ export default function App() {
   }
 
   // ── Render 2: Access Denied Guard for Forecaster Mode ───────────────────
-  if (currentView === "forecaster" && userRole !== "forecaster") {
+  if (currentView === "forecaster" && userRole !== "forecaster" && userRole !== "admin") {
     return (
       <>
         <AccessDenied 
@@ -563,6 +565,14 @@ export default function App() {
           >
             Analytics & Anomalies
           </button>
+          {(userRole === 'forecaster' || userRole === 'admin') && (
+            <button
+              className={`topbar-tab${activeTab === "pipeline" ? " active" : ""}`}
+              onClick={() => setActiveTab("pipeline")}
+            >
+              Live Data Pipeline
+            </button>
+          )}
         </nav>
 
         <div className="topbar-right">

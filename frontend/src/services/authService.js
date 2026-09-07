@@ -1,8 +1,12 @@
 // SAGAR-DRISHTI RBAC & Auth Service
 // Role hierarchy: guest → student → forecaster → admin
 
+import { ADMIN_EMAILS, isAdminEmail } from './adminEmails.js';
+
 const STORAGE_KEY_USER = 'sagar_drishti_user';
 const STORAGE_KEY_TOKEN = 'sagar_drishti_token';
+
+export { ADMIN_EMAILS, isAdminEmail };
 
 export const getStoredUser = () => {
   try {
@@ -41,7 +45,8 @@ export const loginWithEmailPassword = async (email, password) => {
     const fbUser = cred.user;
 
     // Resolve role from Firestore (creates doc if first login)
-    const role = await ensureUserDoc(fbUser.uid, fbUser.email, fbUser.displayName || email.split('@')[0]);
+    const resolved = await ensureUserDoc(fbUser.uid, fbUser.email, fbUser.displayName || email.split('@')[0]);
+    const role = isAdminEmail(fbUser.email) ? 'admin' : resolved;
 
     const user = {
       uid: fbUser.uid,
@@ -75,7 +80,8 @@ export const registerWithEmailPassword = async (email, password, displayName = '
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     const fbUser = cred.user;
 
-    const role = await ensureUserDoc(fbUser.uid, fbUser.email, displayName || email.split('@')[0]);
+    const resolved = await ensureUserDoc(fbUser.uid, fbUser.email, displayName || email.split('@')[0]);
+    const role = isAdminEmail(fbUser.email) ? 'admin' : resolved;
 
     const user = {
       uid: fbUser.uid,
@@ -83,8 +89,8 @@ export const registerWithEmailPassword = async (email, password, displayName = '
       name: displayName || email.split('@')[0],
       role,
       email: fbUser.email,
-      avatar: '🎓',
-      title: 'Student Explorer',
+      avatar: role === 'admin' ? '🛡️' : role === 'forecaster' ? '⚓' : '🎓',
+      title: role === 'admin' ? 'System Administrator' : role === 'forecaster' ? 'Duty Forecaster' : 'Student Explorer',
       provider: 'email',
     };
 
@@ -112,12 +118,12 @@ export const loginWithGoogle = async () => {
     const fbUser = result.user;
 
     // Resolve role from Firestore (failsafe to 'student' in <1.5s)
-    let role = 'student';
+    let role = isAdminEmail(fbUser.email) ? 'admin' : 'student';
     try {
-      role = await ensureUserDoc(fbUser.uid, fbUser.email, fbUser.displayName || '');
+      const resolved = await ensureUserDoc(fbUser.uid, fbUser.email, fbUser.displayName || '');
+      if (!isAdminEmail(fbUser.email)) role = resolved;
     } catch (e) {
-      console.warn("ensureUserDoc fallback to student:", e);
-      role = 'student';
+      console.warn("ensureUserDoc fallback:", e);
     }
 
     const user = {
@@ -167,8 +173,9 @@ export const subscribeAuthState = (callback) => {
         const stored = getStoredUser();
         let role = stored?.role;
         if (!role || role === 'guest') {
-          role = await getUserRole(fbUser.uid).catch(() => 'student');
+          role = await getUserRole(fbUser.uid, fbUser.email).catch(() => 'student');
         }
+        if (isAdminEmail(fbUser.email)) role = 'admin';
         const user = {
           uid: fbUser.uid,
           username: fbUser.email ? fbUser.email.split('@')[0] : 'user',
