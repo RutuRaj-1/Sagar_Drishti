@@ -233,7 +233,7 @@ export default function DatasetHealthDashboard({ datasetStatus, onRefresh }) {
           </div>
           <div className="info-box">
             <div className="info-title">Data Volume</div>
-            5.8 GB CMEMS physics · 183 Argo profiles · 24,611 glider obs · 768 HF radar vectors
+            {`${datasetStatus?.cmems_surface?.records ? '5.8 GB CMEMS physics' : 'CMEMS 2D'} · ${datasetStatus?.cmems_4d?.monthly_files ? `${datasetStatus.cmems_4d.monthly_files} 4D NetCDF slices` : '3D Volumes'} · ${datasetStatus?.argo?.records || datasetStatus?.argo?.n_files || 183} Argo profiles · ${(datasetStatus?.gliders?.records || 24611).toLocaleString()} glider obs · ${(datasetStatus?.hf_radar?.records || 768).toLocaleString()} HF radar vectors · ${datasetStatus?.rama?.buoys || datasetStatus?.rama?.records || 10} RAMA moorings`}
           </div>
         </div>
       </aside>

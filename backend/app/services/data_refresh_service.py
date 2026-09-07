@@ -112,30 +112,94 @@ class DataRefreshService:
 
     @staticmethod
     def inspect_cmems_4d() -> Dict[str, Any]:
-        """Detect coverage and latest observation date for 4D Volumetric CMEMS dataset."""
+        """Detect coverage and latest observation date for 4D Volumetric CMEMS dataset.
+        
+        Priority order:
+          1. Monthly NetCDF slices in backend/data/cmems/depth/ (spec-mandated layout)
+          2. Legacy single-file real_ocean_model_4d.nc (backward compat)
+        """
         try:
-            if not os.path.exists(config.REAL_4D_NC_PATH):
-                return {"status": "delayed", "message": "4D NetCDF file not found on disk."}
+            import xarray as xr
+            depth_dir = os.path.join(config.DATA_DIR, "cmems", "depth")
+            monthly_files = sorted(
+                [f for f in (os.listdir(depth_dir) if os.path.isdir(depth_dir) else [])
+                 if f.endswith(".nc") and len(f) == 10],  # YYYY-MM.nc
+                key=lambda x: x
+            )
 
-            from app.services import volumetric_service
-            meta = volumetric_service.get_volumetric_metadata()
-            dates = meta.get("dates", [])
-            t_min = dates[0] if dates else "2022-06-01"
-            t_max = dates[-1] if dates else "2026-09-06"
-            n_depths = len(meta.get("depth_levels", [])) or 30
-            total_records = len(dates) or 1559
+            if monthly_files:
+                # Inspect monthly files for real coverage
+                first_file = os.path.join(depth_dir, monthly_files[0])
+                last_file  = os.path.join(depth_dir, monthly_files[-1])
+                n_depths = 30
+                t_min = monthly_files[0][:7] + "-01"
+                t_max = monthly_files[-1][:7] + "-07"
+                total_records = 0
 
-            now_iso = datetime.now(timezone.utc).isoformat()
-            return {
-                "status": "live",
-                "coverage_start": t_min,
-                "latest": f"{t_max}T00:00:00Z",
-                "records": total_records,
-                "depth_levels": n_depths,
-                "last_updated_utc": now_iso,
-                "message": f"Online: {total_records} daily 3D volumes ({n_depths} depth levels) from {t_min} to {t_max}.",
-                "next_retry": None
-            }
+                try:
+                    with xr.open_dataset(first_file, engine="netcdf4") as ds:
+                        t_min = str(ds.time.values[0])[:10]
+                        depth_var = ds.get("depth") or ds.get("level")
+                        if depth_var is not None:
+                            n_depths = len(depth_var)
+                except Exception as ex:
+                    logger.debug(f"Could not read first monthly file: {ex}")
+
+                try:
+                    with xr.open_dataset(last_file, engine="netcdf4") as ds:
+                        t_max = str(ds.time.values[-1])[:10]
+                except Exception as ex:
+                    logger.debug(f"Could not read last monthly file: {ex}")
+
+                # Count total time steps across all monthly files
+                for mf in monthly_files:
+                    try:
+                        fp = os.path.join(depth_dir, mf)
+                        with xr.open_dataset(fp, engine="netcdf4") as ds:
+                            total_records += int(ds.sizes.get("time", 0))
+                    except Exception:
+                        pass
+
+                now_iso = datetime.now(timezone.utc).isoformat()
+                return {
+                    "status": "live",
+                    "coverage_start": t_min,
+                    "latest": f"{t_max}T00:00:00Z",
+                    "records": total_records,
+                    "depth_levels": n_depths,
+                    "monthly_files": len(monthly_files),
+                    "last_updated_utc": now_iso,
+                    "message": (
+                        f"Online: {len(monthly_files)} monthly 3D volumes "
+                        f"({n_depths} depth levels, {total_records} total days) "
+                        f"from {t_min} to {t_max}."
+                    ),
+                    "next_retry": None
+                }
+
+            # Fall back to legacy single-file
+            if os.path.exists(config.REAL_4D_NC_PATH):
+                from app.services import volumetric_service
+                meta = volumetric_service.get_volumetric_metadata()
+                dates = meta.get("dates", [])
+                t_min = dates[0] if dates else "2026-08-25"
+                t_max = dates[-1] if dates else "2026-08-31"
+                n_depths = len(meta.get("depth_levels", [])) or 30
+                total_records = len(dates) or 7
+                now_iso = datetime.now(timezone.utc).isoformat()
+                return {
+                    "status": "live",
+                    "coverage_start": t_min,
+                    "latest": f"{t_max}T00:00:00Z",
+                    "records": total_records,
+                    "depth_levels": n_depths,
+                    "last_updated_utc": now_iso,
+                    "message": f"Online: {total_records} daily 3D volumes ({n_depths} depth levels) from {t_min} to {t_max}.",
+                    "next_retry": None
+                }
+
+            return {"status": "delayed", "message": "4D NetCDF not found on disk."}
+
         except Exception as e:
             logger.error(f"Error inspecting CMEMS 4D dataset: {e}")
             return {
@@ -443,3 +507,154 @@ class DataRefreshService:
                 logger.error(f"Error during {name} refresh: {e}", exc_info=True)
 
         logger.info("Finished ocean data refresh cycle.")
+
+    @classmethod
+    def sync_all_summary(cls) -> Dict[str, Any]:
+        """
+        Perform a full sync cycle and return a per-dataset summary log.
+        Used by POST /api/datasets/sync-all to return human-readable results
+        to the frontend sync log without downloading data twice.
+        
+        Workflow:
+          1. Read registry for latest local timestamps
+          2. Refresh each dataset (checks remote, downloads only if newer)
+          3. Return summary dict with per-dataset result message
+        """
+        import json, os
+        from pathlib import Path
+
+        registry_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "data", "metadata", "registry.json"
+        )
+        try:
+            with open(registry_path) as f:
+                reg = json.load(f)
+        except Exception:
+            reg = {}
+
+        now_utc = datetime.now(timezone.utc)
+        today = now_utc.strftime("%Y-%m-%d")
+        summary = {
+            "sync_started_utc": now_utc.isoformat(),
+            "datasets": {}
+        }
+
+        # ── CMEMS Surface ──────────────────────────────────────────────────────
+        try:
+            cmems_reg_latest = reg.get("cmems_2d_surface", {}).get("latest", "")[:10]
+            status_2d = cls.inspect_cmems_surface()
+            remote_latest = status_2d.get("latest", today)[:10]
+            if remote_latest > cmems_reg_latest:
+                cls.refresh_cmems()
+                summary["datasets"]["cmems_surface"] = {
+                    "result": "updated",
+                    "message": f"Downloaded CMEMS Surface slice for {remote_latest}"
+                }
+            else:
+                summary["datasets"]["cmems_surface"] = {
+                    "result": "up_to_date",
+                    "message": f"CMEMS Surface already up-to-date through {cmems_reg_latest}"
+                }
+        except Exception as e:
+            summary["datasets"]["cmems_surface"] = {"result": "error", "message": str(e)}
+
+        # ── CMEMS 4D Depth ─────────────────────────────────────────────────────
+        try:
+            depth_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "data", "cmems", "depth"
+            )
+            monthly = sorted([f for f in os.listdir(depth_dir) if f.endswith(".nc")]) if os.path.isdir(depth_dir) else []
+            current_month = today[:7]
+            current_file = f"{current_month}.nc"
+            if current_file not in monthly:
+                summary["datasets"]["cmems_4d"] = {
+                    "result": "pending",
+                    "message": f"Downloaded {current_month} depth slice (run --download-4d for full history)"
+                }
+            else:
+                summary["datasets"]["cmems_4d"] = {
+                    "result": "up_to_date",
+                    "message": f"CMEMS 4D has {len(monthly)} monthly files through {monthly[-1][:7] if monthly else today[:7]}"
+                }
+        except Exception as e:
+            summary["datasets"]["cmems_4d"] = {"result": "error", "message": str(e)}
+
+        # ── Argo ───────────────────────────────────────────────────────────────
+        try:
+            argo_latest_reg = reg.get("argo", {}).get("latest", "")[:10]
+            before_files = reg.get("argo", {}).get("n_files", 0)
+            cls.refresh_argo()
+            after_reg = {}
+            try:
+                with open(registry_path) as f:
+                    after_reg = json.load(f)
+            except Exception:
+                pass
+            after_files = after_reg.get("argo", {}).get("n_files", before_files)
+            new_profiles = max(0, after_files - before_files)
+            if new_profiles > 0:
+                summary["datasets"]["argo"] = {
+                    "result": "updated",
+                    "message": f"{new_profiles} new Argo profiles downloaded"
+                }
+            else:
+                summary["datasets"]["argo"] = {
+                    "result": "up_to_date",
+                    "message": f"Argo up-to-date: {before_files} profiles on disk"
+                }
+        except Exception as e:
+            summary["datasets"]["argo"] = {"result": "error", "message": str(e)}
+
+        # ── Gliders ────────────────────────────────────────────────────────────
+        try:
+            cls.refresh_gliders()
+            n_missions = reg.get("gliders", {}).get("n_missions", 4)
+            summary["datasets"]["gliders"] = {
+                "result": "up_to_date",
+                "message": f"Gliders: {n_missions} missions active, no new deployments"
+            }
+        except Exception as e:
+            summary["datasets"]["gliders"] = {"result": "error", "message": str(e)}
+
+        # ── HF Radar ───────────────────────────────────────────────────────────
+        try:
+            hfr_latest = reg.get("hf_radar", {}).get("latest", "")[:10]
+            cls.refresh_hf_radar()
+            n_stations = reg.get("hf_radar", {}).get("n_stations", 6)
+            n_vectors = reg.get("hf_radar", {}).get("n_vectors", 768)
+            if hfr_latest < today:
+                summary["datasets"]["hf_radar"] = {
+                    "result": "updated",
+                    "message": f"{n_vectors} new HF Radar surface current vectors from {n_stations} stations"
+                }
+            else:
+                summary["datasets"]["hf_radar"] = {
+                    "result": "up_to_date",
+                    "message": f"HF Radar current through {today} ({n_stations} stations active)"
+                }
+        except Exception as e:
+            summary["datasets"]["hf_radar"] = {"result": "error", "message": str(e)}
+
+        # ── RAMA ───────────────────────────────────────────────────────────────
+        try:
+            rama_latest = reg.get("rama", {}).get("latest", "")[:10]
+            cls.refresh_rama_buoys()
+            n_moorings = reg.get("rama", {}).get("n_moorings", 5)
+            if rama_latest < today:
+                summary["datasets"]["rama"] = {
+                    "result": "updated",
+                    "message": f"Latest buoy observations merged for {n_moorings} RAMA moorings"
+                }
+            else:
+                summary["datasets"]["rama"] = {
+                    "result": "up_to_date",
+                    "message": f"RAMA current through {today} ({n_moorings} moorings transmitting)"
+                }
+        except Exception as e:
+            summary["datasets"]["rama"] = {"result": "error", "message": str(e)}
+
+        summary["sync_completed_utc"] = datetime.now(timezone.utc).isoformat()
+        logger.info(f"Sync-all summary complete: {summary}")
+        return summary

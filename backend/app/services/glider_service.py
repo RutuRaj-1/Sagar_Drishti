@@ -15,14 +15,34 @@ from typing import List, Optional, Dict, Any
 from app import config
 
 
-@functools.lru_cache(maxsize=1)
 def _load_gliders() -> List[Dict[str, Any]]:
-    """Load the real glider mission dataset."""
-    if not os.path.exists(config.GLIDER_JSON_PATH):
-        return []
-    with open(config.GLIDER_JSON_PATH, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return data
+    """Load the real glider mission datasets from both legacy JSON and missions/ directory."""
+    gliders_map: Dict[str, Any] = {}
+    if os.path.exists(config.GLIDER_JSON_PATH):
+        try:
+            with open(config.GLIDER_JSON_PATH, "r", encoding="utf-8") as f:
+                for g in json.load(f):
+                    gid = g.get("instrument_id") or g.get("id")
+                    if gid:
+                        gliders_map[gid] = g
+        except Exception:
+            pass
+
+    missions_dir = os.path.join(config.DATA_DIR, "gliders", "missions")
+    if os.path.isdir(missions_dir):
+        for fname in os.listdir(missions_dir):
+            if fname.endswith(".json"):
+                try:
+                    fpath = os.path.join(missions_dir, fname)
+                    with open(fpath, "r", encoding="utf-8") as gf:
+                        g = json.load(gf)
+                        gid = g.get("instrument_id") or g.get("id") or fname[:-5]
+                        if gid and gid not in gliders_map:
+                            gliders_map[gid] = g
+                except Exception:
+                    pass
+
+    return list(gliders_map.values())
 
 
 def list_gliders() -> List[Dict[str, Any]]:

@@ -12,13 +12,15 @@ from typing import List, Optional, Dict, Any
 from app import config
 
 
-@functools.lru_cache(maxsize=1)
 def _load_hf_radar_data() -> Dict[str, Any]:
-    """Load the HF Radar surface current dataset."""
+    """Load the HF Radar surface current dataset dynamically from disk."""
     if not os.path.exists(config.HF_RADAR_JSON_PATH):
         return {"stations": []}
-    with open(config.HF_RADAR_JSON_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(config.HF_RADAR_JSON_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"stations": []}
 
 
 def list_stations() -> List[Dict[str, Any]]:

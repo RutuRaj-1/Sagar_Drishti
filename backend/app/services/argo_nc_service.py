@@ -80,17 +80,24 @@ def _platform_number(ds) -> str:
 
 
 
-@functools.lru_cache(maxsize=1)
 def _load_all_profiles() -> List[dict]:
     """
-    Scan every argo-profiles-*.nc file in ARGO_NC_DIR and build a
-    compact summary list (one entry per profile = one dive).
+    Scan every argo-profiles-*.nc file across both ARGO_NC_DIR and
+    argo/profiles/ directory and build a compact summary list.
 
     Returns a list of dicts suitable for the /api/instruments endpoint.
     """
     summaries = []
-    pattern = os.path.join(config.ARGO_NC_DIR, "argo-profiles-*.nc")
-    files = sorted(glob.glob(pattern))
+    dirs_to_scan = [
+        config.ARGO_NC_DIR,
+        os.path.join(config.DATA_DIR, "argo", "profiles")
+    ]
+    files = []
+    for d in dirs_to_scan:
+        if os.path.isdir(d):
+            files.extend(glob.glob(os.path.join(d, "argo-profiles-*.nc")))
+            files.extend(glob.glob(os.path.join(d, "*_prof.nc")))
+    files = sorted(set(files))
 
     for fpath in files:
         try:
@@ -115,7 +122,8 @@ def _load_all_profiles() -> List[dict]:
                     # Skip fill / out-of-range positions
                     if np.isnan(lat) or np.isnan(lon):
                         continue
-                    if not (0 <= lat <= 30 and 50 <= lon <= 105):
+                    # Indian Ocean coverage: 20°E–120°E, 40°S–30°N
+                    if not (-40.0 <= lat <= 30.0 and 20.0 <= lon <= 120.0):
                         continue
 
                     # Accept only good quality positions
@@ -155,15 +163,22 @@ def _load_all_profiles() -> List[dict]:
     return summaries
 
 
-@functools.lru_cache(maxsize=1)
 def _load_trajectories() -> dict:
     """
-    Load all argo-trajectory-*.nc files and build a dict
+    Load all argo-trajectory-*.nc files across both directories and build a dict
     { platform_number: { "lats": [...], "lons": [...], "dates": [...] } }.
     """
     result = {}
-    pattern = os.path.join(config.ARGO_NC_DIR, "argo-trajectory-*.nc")
-    files = sorted(glob.glob(pattern))
+    dirs_to_scan = [
+        config.ARGO_NC_DIR,
+        os.path.join(config.DATA_DIR, "argo", "profiles")
+    ]
+    files = []
+    for d in dirs_to_scan:
+        if os.path.isdir(d):
+            files.extend(glob.glob(os.path.join(d, "argo-trajectory-*.nc")))
+            files.extend(glob.glob(os.path.join(d, "*_Rtraj.nc")))
+    files = sorted(set(files))
 
     for fpath in files:
         try:
@@ -189,6 +204,9 @@ def _load_trajectories() -> dict:
                 la = float(lats_arr[i]) if not np.ma.is_masked(lats_arr[i]) else None
                 lo = float(lons_arr[i]) if not np.ma.is_masked(lons_arr[i]) else None
                 if la is None or lo is None or np.isnan(la) or np.isnan(lo):
+                    continue
+                # Indian Ocean bounds
+                if not (-40.0 <= la <= 30.0 and 20.0 <= lo <= 120.0):
                     continue
                 track_lats.append(round(la, 5))
                 track_lons.append(round(lo, 5))

@@ -14,13 +14,33 @@ from app import config
 from app.services import netcdf_service
 
 
-@functools.lru_cache(maxsize=1)
 def _load_rama_data() -> Dict[str, Any]:
-    """Load the RAMA Moored Buoy dataset."""
-    if not os.path.exists(config.RAMA_BUOY_JSON_PATH):
-        return {"buoys": []}
-    with open(config.RAMA_BUOY_JSON_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """Load the RAMA Moored Buoy dataset, dynamically merging per-buoy files."""
+    data = {"buoys": []}
+    if os.path.exists(config.RAMA_BUOY_JSON_PATH):
+        try:
+            with open(config.RAMA_BUOY_JSON_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            pass
+
+    buoys_map = {b.get("buoy_id"): b for b in data.get("buoys", []) if b.get("buoy_id")}
+
+    buoys_dir = os.path.join(config.DATA_DIR, "rama", "buoys")
+    if os.path.isdir(buoys_dir):
+        for fname in os.listdir(buoys_dir):
+            if fname.endswith(".json") and not fname.endswith("_2026-09-07.json"):
+                try:
+                    fpath = os.path.join(buoys_dir, fname)
+                    with open(fpath, "r", encoding="utf-8") as bf:
+                        buoy_obj = json.load(bf)
+                        bid = buoy_obj.get("buoy_id") or buoy_obj.get("name")
+                        if bid and bid not in buoys_map:
+                            buoys_map[bid] = buoy_obj
+                except Exception:
+                    pass
+
+    return {"buoys": list(buoys_map.values())}
 
 
 def list_buoys() -> List[Dict[str, Any]]:
