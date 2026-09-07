@@ -74,6 +74,8 @@ export default function App() {
   // ── Compute active date list based on dataset mode ───────────────────────
   const activeDates = useMemo(() => {
     if (datasetMode === "volumetric") {
+      // NOTE: 4D volumetric dataset has LIMITED coverage (only 7 days: Aug 25-31)
+      // vs CMEMS 2D which has 1,562 days (2022-06-01 to 2026-09-09)
       return volumetricMeta?.dates || ["2026-08-31"];
     }
     return dates.length ? dates : ["2024-01-01"];
@@ -177,7 +179,7 @@ export default function App() {
 
     if (datasetMode === "volumetric") {
       const depthVal = volumetricMeta?.depth_levels?.[depthIndex] ?? 0;
-      api.getDepthSlice(variable, date, depthVal, 1)
+      api.getDepthSlice(variable, date, depthVal, 2)
         .then((s) => {
           setSurface(s);
           if (s && s.min_value !== undefined && s.max_value !== undefined) {

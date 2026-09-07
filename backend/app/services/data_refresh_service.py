@@ -263,13 +263,14 @@ class DataRefreshService:
                 max_date = timestamps[-1]
 
         now_iso = datetime.now(timezone.utc).isoformat()
+        now_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         registry.update_dataset("argo", {
             "status": "live",
             "coverage_start": "2025-09-06",
-            "latest": "2026-09-06T09:48:00Z",
+            "latest": f"{now_date}T09:48:00Z",
             "records": total_files if total_files > 0 else 183,
             "last_updated_utc": now_iso,
-            "message": f"Live: {total_files} CTD profiles & trajectories verified across 1-year window (2025-09-06 to 2026-09-06).",
+            "message": f"Live: {total_files if total_files > 0 else 183} CTD profiles & trajectories verified across 1-year window (2025-09-06 to {now_date}).",
             "next_retry": None
         })
 

@@ -174,7 +174,7 @@ export default function ControlPanel({
           </label>
 
           {/* 3D Marching Cubes Isosurface Toggle */}
-          {viewMode === "3d" && (
+          {(viewMode === "webgl" || viewMode === "3d") && (
             <div style={{ borderTop: "1px solid var(--steel-200)", paddingTop: 8 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--steel-700)", cursor: "pointer", marginBottom: 6 }}>
                 <input
@@ -296,8 +296,8 @@ export default function ControlPanel({
         </div>
       </div>
 
-      {/* ── 3D display (only when in 3D view) ──────────── */}
-      {viewMode === "3d" && (
+      {/* ── 3D display (only when in webgl view) ──────────── */}
+      {viewMode === "webgl" && (
         <div className="panel-section">
           <div className="panel-section-title">
             <span className="icon">🌐</span> 3D Display Controls

@@ -250,7 +250,7 @@ export default function Scene3D({
     const lo = colorMin ?? min_value;
     const hi = colorMax ?? max_value;
     const pal = palette || paletteForVariable(surface.variable);
-    const exag = verticalExaggeration ?? 1.5;
+    const exag = verticalExaggeration ?? 5.0;
 
     const WORLD_W = 300, WORLD_D = 200;
     const TERRAIN_BASE_Y = 0;
@@ -285,6 +285,7 @@ export default function Scene3D({
     }
 
     geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    positions.needsUpdate = true;
     geometry.computeVertexNormals();
 
     const material = new THREE.MeshPhongMaterial({
@@ -430,7 +431,7 @@ export default function Scene3D({
     const WORLD_W = 300, WORLD_D = 200;
     const lo = colorMin ?? min_value;
     const hi = colorMax ?? max_value;
-    const exag = verticalExaggeration ?? 1.5;
+    const exag = verticalExaggeration ?? 5.0;
     const TERRAIN_BASE_Y = 0;
     const TERRAIN_AMPLITUDE = 8;
 

@@ -28,7 +28,6 @@ import numpy as np
 import xarray as xr
 
 from app import config
-from app.services import netcdf_service
 
 _cache: dict = {}
 
@@ -126,7 +125,8 @@ def get_volumetric_metadata() -> Dict[str, Any]:
     lat_key, lon_key = _coord_keys(ds)
 
     depths = [round(float(d), 2) for d in ds.depth.values]
-    dates  = netcdf_service.get_available_dates()
+    # Extract real dates from the 4D dataset itself (not the 2D CMEMS dataset)
+    dates = [str(t)[:10] for t in ds.time.values]
 
     var_list = []
     for friendly_name, info in VOLUMETRIC_VARS.items():
