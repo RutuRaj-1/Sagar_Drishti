@@ -20,7 +20,8 @@ import LandingPage from "./components/auth/LandingPage.jsx";
 import AuthModal from "./components/auth/AuthModal.jsx";
 import AccessDenied from "./components/auth/AccessDenied.jsx";
 import UserHeaderMenu from "./components/auth/UserHeaderMenu.jsx";
-import { getCurrentRole, getStoredUser, loginWithCredentials, loginWithGoogle } from "./services/authService.js";
+import AdminPanel from "./components/auth/AdminPanel.jsx";
+import { getCurrentRole, getStoredUser, logout, subscribeAuthState } from "./services/authService.js";
 
 
 export default function App() {
@@ -42,9 +43,8 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
 
   // ── View & Auth State ───────────────────────────────────────────────────
-  const [currentView, setCurrentView] = useState("landing"); // "landing" | "explore" | "forecaster"
+  const [currentView, setCurrentView] = useState("landing"); // "landing" | "explore" | "forecaster" | "admin"
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalRole, setAuthModalRole] = useState("student");
   const [userRole, setUserRole] = useState(getCurrentRole());
 
   // ── Display settings ─────────────────────────────────────────────────────
@@ -126,6 +126,16 @@ export default function App() {
     }
   }, []);
 
+  // ── Sync Firebase Auth state across tabs & reloads ───────────────────────
+  useEffect(() => {
+    const unsub = subscribeAuthState((user, role) => {
+      if (user && role) {
+        setUserRole(role);
+      }
+    });
+    return unsub;
+  }, []);
+
   const handleSelectMode = useCallback((mode) => {
     if (mode === "landing") {
       setCurrentView("landing");
@@ -144,40 +154,25 @@ export default function App() {
       window.location.hash = "forecaster";
       return;
     }
+    if (mode === "admin") {
+      setCurrentView("admin");
+      window.location.hash = "admin";
+      return;
+    }
   }, []);
 
-  const handleOpenAuth = (action = 'login', role = 'student') => {
-    if (action === 'google') {
-      loginWithGoogle().then((res) => {
-        if (res.success) {
-          setUserRole('student');
-          handleSelectMode('explore');
-        }
-      });
-      return;
-    }
-    if (action === 'quick_student') {
-      loginWithCredentials('student', 'student123', 'student').then(() => {
-        setUserRole('student');
-        handleSelectMode('explore');
-      });
-      return;
-    }
-    if (action === 'quick_forecaster') {
-      loginWithCredentials('forecaster', 'forecast123', 'forecaster').then(() => {
-        setUserRole('forecaster');
-        handleSelectMode('forecaster');
-      });
-      return;
-    }
-    setAuthModalRole(role);
+  // Just open the auth modal — role routing happens inside handleAuthSuccess
+  const handleOpenAuth = () => {
     setAuthModalOpen(true);
   };
 
+  // Called by AuthModal after successful login — routes by Firestore role
   const handleAuthSuccess = (user, role) => {
     setUserRole(role);
     setAuthModalOpen(false);
-    if (role === 'forecaster') {
+    if (role === 'admin') {
+      handleSelectMode('admin');
+    } else if (role === 'forecaster') {
       handleSelectMode('forecaster');
     } else {
       handleSelectMode('explore');
@@ -437,17 +432,36 @@ export default function App() {
   if (currentView === "landing") {
     return (
       <>
-        <LandingPage 
-          onSelectMode={handleSelectMode} 
-          onOpenAuth={handleOpenAuth} 
+        <LandingPage
+          onSelectMode={handleSelectMode}
+          onOpenAuth={handleOpenAuth}
+          currentUser={getStoredUser()}
+          userRole={userRole}
         />
-        <AuthModal 
-          isOpen={authModalOpen} 
-          onClose={() => setAuthModalOpen(false)} 
-          initialRole={authModalRole} 
-          onSuccess={handleAuthSuccess} 
+        <AuthModal
+          isOpen={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          onSuccess={handleAuthSuccess}
         />
       </>
+    );
+  }
+
+  // ── Render 1b: Admin Panel ───────────────────────────────────────────────
+  if (currentView === "admin") {
+    if (userRole !== 'admin') {
+      handleSelectMode('explore');
+      return null;
+    }
+    return (
+      <AdminPanel 
+        onGoBack={() => handleSelectMode('explore')} 
+        onLogout={async () => {
+          await logout();
+          setUserRole('guest');
+          handleSelectMode('landing');
+        }}
+      />
     );
   }
 
@@ -463,7 +477,6 @@ export default function App() {
         <AuthModal 
           isOpen={authModalOpen} 
           onClose={() => setAuthModalOpen(false)} 
-          initialRole={authModalRole} 
           onSuccess={handleAuthSuccess} 
         />
       </>
@@ -486,18 +499,35 @@ export default function App() {
         </div>
 
         <nav className="topbar-tabs">
-          <button
-            className={`topbar-tab forecaster-tab${currentView === "forecaster" ? " active" : ""}`}
-            onClick={() => handleSelectMode("forecaster")}
-            style={{
-              background: currentView === "forecaster" ? "linear-gradient(135deg, #0f172a, #334155)" : "transparent",
-              color: currentView === "forecaster" ? "#38bdf8" : "#94a3b8",
-              fontWeight: 700,
-              border: currentView === "forecaster" ? "1.5px solid #0284c7" : "none",
-            }}
-          >
-            Forecaster Mode
-          </button>
+          {/* Forecaster tab: only visible to forecasters and admins */}
+          {(userRole === 'forecaster' || userRole === 'admin') && (
+            <button
+              className={`topbar-tab forecaster-tab${currentView === "forecaster" ? " active" : ""}`}
+              onClick={() => handleSelectMode("forecaster")}
+              style={{
+                background: currentView === "forecaster" ? "linear-gradient(135deg, #0f172a, #334155)" : "transparent",
+                color: currentView === "forecaster" ? "#38bdf8" : "#94a3b8",
+                fontWeight: 700,
+                border: currentView === "forecaster" ? "1.5px solid #0284c7" : "none",
+              }}
+            >
+              Forecaster Mode
+            </button>
+          )}
+          {/* Admin tab: only visible to admins */}
+          {userRole === 'admin' && (
+            <button
+              className={`topbar-tab`}
+              onClick={() => handleSelectMode("admin")}
+              style={{
+                background: "transparent", color: "#a78bfa",
+                fontWeight: 700, border: "1px solid rgba(139,92,246,0.4)",
+                borderRadius: 6,
+              }}
+            >
+              🛡️ Admin
+            </button>
+          )}
           <button
             className={`topbar-tab explorer-tab${currentView === "explore" ? " active" : ""}`}
             onClick={() => handleSelectMode("explore")}
@@ -540,7 +570,10 @@ export default function App() {
             currentMode={currentView} 
             onNavigateMode={handleSelectMode} 
             onOpenAuth={handleOpenAuth} 
-            onLogoutSuccess={() => setUserRole(getCurrentRole())} 
+            onLogoutSuccess={() => {
+              setUserRole('guest');
+              handleSelectMode('landing');
+            }} 
           />
         </div>
       </header>
@@ -846,7 +879,6 @@ export default function App() {
       <AuthModal 
         isOpen={authModalOpen} 
         onClose={() => setAuthModalOpen(false)} 
-        initialRole={authModalRole} 
         onSuccess={handleAuthSuccess} 
       />
     </div>

@@ -1,28 +1,8 @@
 // SAGAR-DRISHTI RBAC & Auth Service
+// Role hierarchy: guest → student → forecaster → admin
 
 const STORAGE_KEY_USER = 'sagar_drishti_user';
 const STORAGE_KEY_TOKEN = 'sagar_drishti_token';
-
-export const DEMO_CREDENTIALS = {
-  student: {
-    username: 'student',
-    password: 'student123',
-    name: 'Arjun Sharma',
-    role: 'student',
-    email: 'arjun.student@incois.gov.in',
-    avatar: '🎓',
-    title: 'Ocean Explorer & Student'
-  },
-  forecaster: {
-    username: 'forecaster',
-    password: 'forecast123',
-    name: 'Dr. Aditi Verma',
-    role: 'forecaster',
-    email: 'aditi.verma@incois.gov.in',
-    avatar: '⚓',
-    title: 'Senior Oceanographer & Duty Forecaster'
-  }
-};
 
 export const getStoredUser = () => {
   try {
@@ -48,102 +28,123 @@ export const isAuthenticated = () => {
   return !!user && user.role !== 'guest';
 };
 
-export const loginWithCredentials = async (username, password, preferredRole = 'student') => {
-  const cleanUsername = (username || '').trim().toLowerCase();
-  
-  // 1. Try local demo fallback first for rapid offline testing
-  let matchedUser = null;
-  if (cleanUsername === 'student' && password === 'student123') {
-    matchedUser = DEMO_CREDENTIALS.student;
-  } else if (cleanUsername === 'forecaster' && password === 'forecast123') {
-    matchedUser = DEMO_CREDENTIALS.forecaster;
-  }
-
-  if (matchedUser) {
-    const token = `sd_demo_token_${matchedUser.username}_${Date.now()}`;
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(matchedUser));
-    localStorage.setItem(STORAGE_KEY_TOKEN, token);
-    return { success: true, user: matchedUser, token };
-  }
-
-  // 2. Query FastAPI Backend auth endpoint
+/**
+ * Login with Email + Password via Firebase Auth.
+ * After login, resolves role from Firestore.
+ */
+export const loginWithEmailPassword = async (email, password) => {
   try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: cleanUsername,
-        password: password,
-        preferred_role: preferredRole
-      })
-    });
+    const { auth, signInWithEmailAndPassword } = await import('./firebase.js');
+    const { ensureUserDoc } = await import('./firestoreService.js');
 
-    if (response.ok) {
-      const data = await response.json();
-      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
-      localStorage.setItem(STORAGE_KEY_TOKEN, data.token);
-      return { success: true, user: data.user, token: data.token };
-    } else {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || "Authentication failed. Check credentials.");
-    }
-  } catch (backendError) {
-    // If backend is un-reachable or errors out, fallback if password matches demo rule
-    if (password === 'student123' || password === 'forecast123' || password === 'demo123') {
-      const role = (preferredRole === 'forecaster') ? 'forecaster' : 'student';
-      const fallbackUser = {
-        username: cleanUsername || role,
-        name: (cleanUsername || role).toUpperCase(),
-        role: role,
-        email: `${cleanUsername || role}@sagar-drishti.in`,
-        avatar: role === 'student' ? '🎓' : '⚓',
-        title: role === 'student' ? 'Student Explorer' : 'Duty Forecaster'
-      };
-      const token = `sd_fallback_token_${role}_${Date.now()}`;
-      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(fallbackUser));
-      localStorage.setItem(STORAGE_KEY_TOKEN, token);
-      return { success: true, user: fallbackUser, token };
-    }
-    throw backendError;
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    const fbUser = cred.user;
+
+    // Resolve role from Firestore (creates doc if first login)
+    const role = await ensureUserDoc(fbUser.uid, fbUser.email, fbUser.displayName || email.split('@')[0]);
+
+    const user = {
+      uid: fbUser.uid,
+      username: fbUser.email.split('@')[0],
+      name: fbUser.displayName || email.split('@')[0],
+      role,
+      email: fbUser.email,
+      avatar: fbUser.photoURL || (role === 'forecaster' ? '⚓' : role === 'admin' ? '🛡️' : '🎓'),
+      title: role === 'forecaster' ? 'Duty Forecaster' : role === 'admin' ? 'System Administrator' : 'Student Explorer',
+      provider: 'email',
+    };
+
+    const token = await fbUser.getIdToken().catch(() => `sd_email_token_${Date.now()}`);
+    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+    localStorage.setItem(STORAGE_KEY_TOKEN, token);
+    return { success: true, user, token, role };
+  } catch (err) {
+    throw new Error(err.message || 'Email/password authentication failed.');
   }
 };
 
+/**
+ * Register new user with Email + Password via Firebase Auth.
+ * Creates Firestore doc with default role 'student'.
+ */
+export const registerWithEmailPassword = async (email, password, displayName = '') => {
+  try {
+    const { auth, createUserWithEmailAndPassword } = await import('./firebase.js');
+    const { ensureUserDoc } = await import('./firestoreService.js');
+
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const fbUser = cred.user;
+
+    const role = await ensureUserDoc(fbUser.uid, fbUser.email, displayName || email.split('@')[0]);
+
+    const user = {
+      uid: fbUser.uid,
+      username: email.split('@')[0],
+      name: displayName || email.split('@')[0],
+      role,
+      email: fbUser.email,
+      avatar: '🎓',
+      title: 'Student Explorer',
+      provider: 'email',
+    };
+
+    const token = await fbUser.getIdToken().catch(() => `sd_email_token_${Date.now()}`);
+    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+    localStorage.setItem(STORAGE_KEY_TOKEN, token);
+    return { success: true, user, token, role };
+  } catch (err) {
+    throw new Error(err.message || 'Registration failed.');
+  }
+};
+
+/**
+ * Login with Google.
+ * After auth, resolves/creates Firestore user doc and reads role.
+ * Default role for new @gmail.com users = 'student'.
+ * Admins can promote via Admin Panel → next login picks up new role.
+ */
 export const loginWithGoogle = async () => {
   try {
     const { auth, googleProvider, signInWithPopup } = await import('./firebase.js');
+    const { ensureUserDoc } = await import('./firestoreService.js');
+
     const result = await signInWithPopup(auth, googleProvider);
     const fbUser = result.user;
-    const googleUser = {
-      username: fbUser.email ? fbUser.email.split('@')[0] : 'google_explorer',
-      name: fbUser.displayName || 'Google Student Explorer',
-      role: 'student',
-      email: fbUser.email || 'student@google.com',
-      avatar: fbUser.photoURL || '🎓',
-      title: 'Authenticated Google Explorer'
+
+    // Resolve role from Firestore (failsafe to 'student' in <1.5s)
+    let role = 'student';
+    try {
+      role = await ensureUserDoc(fbUser.uid, fbUser.email, fbUser.displayName || '');
+    } catch (e) {
+      console.warn("ensureUserDoc fallback to student:", e);
+      role = 'student';
+    }
+
+    const user = {
+      uid: fbUser.uid,
+      username: fbUser.email ? fbUser.email.split('@')[0] : 'google_user',
+      name: fbUser.displayName || 'Google User',
+      role,
+      email: fbUser.email || '',
+      avatar: fbUser.photoURL || (role === 'forecaster' ? '⚓' : role === 'admin' ? '🛡️' : '🎓'),
+      title: role === 'forecaster' ? 'Duty Forecaster' : role === 'admin' ? 'System Administrator' : 'Ocean Explorer',
+      provider: 'google',
     };
+
     const token = await fbUser.getIdToken().catch(() => `sd_google_token_${Date.now()}`);
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(googleUser));
+    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
     localStorage.setItem(STORAGE_KEY_TOKEN, token);
-    return { success: true, user: googleUser, token };
+    return { success: true, user, token, role };
   } catch (err) {
-    console.warn("Firebase Google login error, using simulated Google Student login:", err);
-    const googleUser = {
-      username: 'google_explorer',
-      name: 'Student Explorer (Google)',
-      role: 'student',
-      email: 'student.explorer@gmail.com',
-      avatar: '🌐',
-      title: 'Verified Google Student'
-    };
-    const token = `sd_google_token_${Date.now()}`;
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(googleUser));
-    localStorage.setItem(STORAGE_KEY_TOKEN, token);
-    return { success: true, user: googleUser, token };
+    console.error("Google login error:", err);
+    throw new Error(err.message || 'Google authentication failed. Please try again.');
   }
 };
 
 export const logout = async () => {
   try {
+    const { auth, signOut } = await import('./firebase.js');
+    await signOut(auth).catch(() => {});
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
   } finally {
     localStorage.removeItem(STORAGE_KEY_USER);
@@ -151,8 +152,47 @@ export const logout = async () => {
   }
 };
 
+/**
+ * Subscribes to Firebase onAuthStateChanged and syncs localStorage.
+ * If user is logged in via Firebase Auth, resolves role and passes user to callback.
+ */
+export const subscribeAuthState = (callback) => {
+  let unsubscribe = () => {};
+  import('./firebase.js').then(async ({ auth }) => {
+    const { onAuthStateChanged } = await import('firebase/auth');
+    const { getUserRole } = await import('./firestoreService.js');
+
+    unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        const stored = getStoredUser();
+        let role = stored?.role;
+        if (!role || role === 'guest') {
+          role = await getUserRole(fbUser.uid).catch(() => 'student');
+        }
+        const user = {
+          uid: fbUser.uid,
+          username: fbUser.email ? fbUser.email.split('@')[0] : 'user',
+          name: fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Explorer'),
+          role: role || 'student',
+          email: fbUser.email || '',
+          avatar: fbUser.photoURL || (role === 'forecaster' ? '⚓' : role === 'admin' ? '🛡️' : '🎓'),
+          title: role === 'forecaster' ? 'Duty Forecaster' : role === 'admin' ? 'System Administrator' : 'Ocean Explorer',
+          provider: fbUser.providerData?.[0]?.providerId || 'google',
+        };
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+        callback(user, user.role);
+      } else {
+        callback(null, 'guest');
+      }
+    });
+  }).catch(console.error);
+
+  return () => unsubscribe();
+};
+
 export const canAccessMode = (mode, role = getCurrentRole()) => {
-  if (mode === 'explore') return true; // Accessible by student, forecaster, and guest
-  if (mode === 'forecaster') return role === 'forecaster';
+  if (mode === 'explore') return true;
+  if (mode === 'forecaster') return role === 'forecaster' || role === 'admin';
+  if (mode === 'admin') return role === 'admin';
   return true;
 };

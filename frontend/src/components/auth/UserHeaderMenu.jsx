@@ -24,13 +24,17 @@ const UserHeaderMenu = ({ currentMode, onNavigateMode, onOpenAuth, onLogoutSucce
 
       {/* Account / Role Badge */}
       <div className="user-profile-trigger" onClick={() => setDropdownOpen(!dropdownOpen)}>
-        <div className="user-avatar-circle">
-          {user ? 'U' : role === 'forecaster' ? 'FC' : 'ST'}
+        <div className="user-avatar-circle" style={{
+          background: role === 'admin' ? '#8b5cf6' : role === 'forecaster' ? '#f59e0b' : '#0284c7'
+        }}>
+          {role === 'admin' ? '🛡️' : role === 'forecaster' ? '⚓' : user ? '🎓' : 'ST'}
         </div>
         <div className="user-info-text">
           <span className="user-name">{user ? user.name : 'Guest Visitor'}</span>
-          <span className="user-role-tag">
-            {role === 'forecaster' ? 'Forecaster' : role === 'student' ? 'Student' : 'Guest'}
+          <span className="user-role-tag" style={{
+            color: role === 'admin' ? '#a78bfa' : role === 'forecaster' ? '#f59e0b' : '#38bdf8'
+          }}>
+            {role === 'admin' ? 'Admin' : role === 'forecaster' ? 'Forecaster' : role === 'student' ? 'Student' : 'Guest'}
           </span>
         </div>
         <span className="dropdown-arrow">{dropdownOpen ? '^' : 'v'}</span>
@@ -61,18 +65,38 @@ const UserHeaderMenu = ({ currentMode, onNavigateMode, onOpenAuth, onLogoutSucce
             </div>
           </button>
 
-          <button 
-            className={`dd-item ${currentMode === 'forecaster' ? 'active-mode' : ''}`}
-            onClick={() => {
-              onNavigateMode('forecaster');
-              setDropdownOpen(false);
-            }}
-          >
-            <div>
-              <div className="dd-item-title">Forecaster / Researcher Mode</div>
-              <div className="dd-item-desc">4D depth slices, skill score & AI validation</div>
-            </div>
-          </button>
+          {/* Forecaster Mode: ONLY visible to Forecasters and Admins */}
+          {(role === 'forecaster' || role === 'admin') && (
+            <button 
+              className={`dd-item ${currentMode === 'forecaster' ? 'active-mode' : ''}`}
+              onClick={() => {
+                onNavigateMode('forecaster');
+                setDropdownOpen(false);
+              }}
+            >
+              <div>
+                <div className="dd-item-title">Forecaster / Researcher Mode</div>
+                <div className="dd-item-desc">4D depth slices, skill score & AI validation</div>
+              </div>
+            </button>
+          )}
+
+          {/* Admin Panel: ONLY visible to Admins */}
+          {role === 'admin' && (
+            <button 
+              className={`dd-item ${currentMode === 'admin' ? 'active-mode' : ''}`}
+              onClick={() => {
+                onNavigateMode('admin');
+                setDropdownOpen(false);
+              }}
+              style={{ borderLeft: '3px solid #8b5cf6' }}
+            >
+              <div>
+                <div className="dd-item-title" style={{ color: '#a78bfa' }}>🛡️ Admin Panel</div>
+                <div className="dd-item-desc">Manage user roles & RBAC database</div>
+              </div>
+            </button>
+          )}
 
           <button 
             className="dd-item"
@@ -98,7 +122,7 @@ const UserHeaderMenu = ({ currentMode, onNavigateMode, onOpenAuth, onLogoutSucce
               className="dd-item login-item"
               onClick={() => {
                 setDropdownOpen(false);
-                onOpenAuth('login');
+                onOpenAuth();
               }}
             >
               <span className="dd-item-title">Sign In / Switch Role</span>
