@@ -52,10 +52,11 @@ India's INCOIS monitors **2.3 million km²** of Exclusive Economic Zone with a n
 └─────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-The platform has four main views:
+The platform has five main views:
 
 | View | What you can do |
 |---|---|
+| **🎓 Student / Explorer Mode** | Public, story-driven ocean literacy workspace (`/explore` or `#explore`). Features layman summaries, AI-generated insights, interactive depth zone bar, location comparisons, ocean health status badge, 6-stop guided tour with voice narration, rotating facts, and an educational Q&A AI chatbot. |
 | **2D GIS Map** | Inspect any CMEMS variable as a heatmap overlay on a Leaflet map. Click a point → instant 4-year time series. Toggle animated current vectors. |
 | **3D WebGL Terrain** | Rotate the same ocean field as a Three.js height-field terrain. Enable depth-resolved Marching Cubes isosurface shells for thermocline visualization. |
 | **Argo & Gliders** | Browse 91 Argo floats + 4 glider missions. Click any platform → depth profile charts (7 BGC parameters) + T-S water mass diagram + model co-location comparison. |

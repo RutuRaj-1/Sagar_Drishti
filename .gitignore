@@ -1,5 +1,7 @@
 # Python
+.venv/
 venv/
+backend/.venv/
 backend/venv/
 __pycache__/
 backend/__pycache__/
@@ -27,7 +29,8 @@ Thumbs.db
 
 # Large datasets & backend data folder
 backend/data/
-data/
+/data/
+!frontend/src/data/
 *.nc
 *.grib
 *.grib2

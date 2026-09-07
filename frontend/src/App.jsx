@@ -12,6 +12,7 @@ import DatasetHealthDashboard from "./components/DatasetHealthDashboard.jsx";
 import HFRadarRamaExplorer from "./components/HFRadarRamaExplorer.jsx";
 // Static import so Vite bundles Cesium in the same chunk (avoids CJS interop issues with lazy())
 import CesiumGlobeView from "./components/CesiumGlobeView.jsx";
+import StudentRightPanel from "./components/student/StudentRightPanel.jsx";
 
 
 export default function App() {
@@ -86,6 +87,18 @@ export default function App() {
 
   // ── Initial Bootstrap ────────────────────────────────────────────────────
   useEffect(() => {
+    const hash = window.location.hash;
+    const pathname = window.location.pathname;
+    if (
+      hash === "#explore" ||
+      hash === "#student" ||
+      hash === "#outreach" ||
+      pathname.includes("/explore") ||
+      pathname.includes("/student")
+    ) {
+      setActiveTab("explore");
+    }
+
     api.health()
       .then(() => setApiOnline(true))
       .catch(() => setApiOnline(false));
@@ -169,6 +182,23 @@ export default function App() {
     setPalette(newPal);
     setColorRange(null);
   }, []);
+
+  // ── Handle Guided Tour Stop Selection ────────────────────────────────────
+  const handleTourStopSelect = useCallback((stop) => {
+    if (!stop) return;
+    if (stop.datasetMode && stop.datasetMode !== datasetMode) {
+      setDatasetMode(stop.datasetMode);
+    }
+    if (stop.variable) {
+      handleVariableChange(stop.variable);
+    }
+    if (stop.depthIndex !== undefined) {
+      setDepthIndex(stop.depthIndex);
+    }
+    if (stop.viewMode) {
+      setViewMode(stop.viewMode);
+    }
+  }, [datasetMode, handleVariableChange]);
 
   // ── Fetch surface or depth slice data ────────────────────────────────────
   useEffect(() => {
@@ -316,8 +346,25 @@ export default function App() {
 
         <nav className="topbar-tabs">
           <button
+            className={`topbar-tab explorer-tab${activeTab === "explore" ? " active" : ""}`}
+            onClick={() => {
+              setActiveTab("explore");
+              window.location.hash = "explore";
+            }}
+            style={{
+              background: activeTab === "explore" ? "linear-gradient(135deg, #0284c7, #0d9488)" : "transparent",
+              color: "#ffffff",
+              fontWeight: 700,
+            }}
+          >
+            🎓 Explorer Mode
+          </button>
+          <button
             className={`topbar-tab${activeTab === "viz" ? " active" : ""}`}
-            onClick={() => setActiveTab("viz")}
+            onClick={() => {
+              setActiveTab("viz");
+              if (window.location.hash === "#explore") window.location.hash = "";
+            }}
           >
             🌐 3D/2D Viewport
           </button>
@@ -432,9 +479,9 @@ export default function App() {
       )}
 
       {/* ═══════════════════════════════════════════════════════
-          VISUALIZATION TAB
+          VISUALIZATION & STUDENT EXPLORER TAB
           ═══════════════════════════════════════════════════════ */}
-      {activeTab === "viz" && (
+      {(activeTab === "viz" || activeTab === "explore") && (
         <main className="main-layout">
           {/* Left panel */}
           <ControlPanel
@@ -618,26 +665,38 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right panel: Dual-Line Model vs Observation Chart + Depth Readings */}
-          <ProfilePanel
-            instruments={instruments}
-            gliders={gliders}
-            selectedId={selectedInstrumentId}
-            onSelect={setSelectedInstrumentId}
-            profile={profile}
-            timeSeries={timeSeries}
-            timeSeriesPoint={clickedPoint}
-            loading={profileLoading || tsLoading}
-            variable={variable}
-            colorRange={colorRange}
-            surface={surface}
-            datasetMode={datasetMode}
-            volumetricMeta={volumetricMeta}
-            depthIndex={depthIndex}
-            depthLevels={depthLevels}
-            palette={palette}
-            colorScale={colorScale}
-          />
+          {/* Right panel: Student / Explorer Educational Workspace or Forecaster ProfilePanel */}
+          {activeTab === "explore" ? (
+            <StudentRightPanel
+              variable={variable}
+              date={currentDate}
+              depthIndex={depthIndex}
+              depthLevels={depthLevels}
+              surfaceStats={surface}
+              palette={palette}
+              onSelectTourStop={handleTourStopSelect}
+            />
+          ) : (
+            <ProfilePanel
+              instruments={instruments}
+              gliders={gliders}
+              selectedId={selectedInstrumentId}
+              onSelect={setSelectedInstrumentId}
+              profile={profile}
+              timeSeries={timeSeries}
+              timeSeriesPoint={clickedPoint}
+              loading={profileLoading || tsLoading}
+              variable={variable}
+              colorRange={colorRange}
+              surface={surface}
+              datasetMode={datasetMode}
+              volumetricMeta={volumetricMeta}
+              depthIndex={depthIndex}
+              depthLevels={depthLevels}
+              palette={palette}
+              colorScale={colorScale}
+            />
+          )}
         </main>
       )}
     </div>
