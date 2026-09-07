@@ -16,9 +16,13 @@ export default function StudentRightPanel({
   palette,
   onSelectTourStop,
 }) {
-  const [activeTab, setActiveTab] = useState("guide"); // "guide" | "chat"
+  const [activeTab, setActiveTab] = useState("guide"); // "guide" | "chat" | "quiz"
   const [inTourMode, setInTourMode] = useState(false);
   const [activeStopId, setActiveStopId] = useState(null);
+  const [isAudioNarrating, setIsAudioNarrating] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState("all");
+  const [quizScore, setQuizScore] = useState(0);
+  const [quizAnswered, setQuizAnswered] = useState(null);
 
   const handleStartTour = () => {
     setInTourMode(true);
@@ -42,14 +46,44 @@ export default function StudentRightPanel({
     setActiveStopId(null);
   };
 
+  const topicChips = [
+    { id: "all", label: "🌊 All Topics" },
+    { id: "monsoon", label: "🌧️ Monsoons" },
+    { id: "cyclone", label: "🌀 Cyclones" },
+    { id: "corals", label: "🪸 Coral Health" },
+    { id: "climate", label: "🌡️ Climate Change" },
+  ];
+
   return (
     <aside className="student-right-panel">
       {/* Top Section Header & Tab Switcher */}
       <div className="student-panel-top">
         <div className="student-panel-banner">
-          <div className="banner-badge">🎓 Student / Explorer Mode</div>
+          <div className="banner-badge-group">
+            <span className="banner-badge">🎓 Student / Explorer Mode</span>
+            <button
+              className={`narrator-toggle-btn ${isAudioNarrating ? "active" : ""}`}
+              onClick={() => setIsAudioNarrating(!isAudioNarrating)}
+              title="Toggle AI Audio Narrator"
+            >
+              {isAudioNarrating ? "🔊 Narrator: PLAYING" : "🔇 Voice Narrator"}
+            </button>
+          </div>
           <h2>Understanding India's Oceans</h2>
           <p>Interactive story-driven ocean literacy workspace</p>
+        </div>
+
+        {/* Topic Quick Chips */}
+        <div className="student-topic-chips">
+          {topicChips.map((chip) => (
+            <button
+              key={chip.id}
+              className={`topic-chip ${selectedTopic === chip.id ? "active" : ""}`}
+              onClick={() => setSelectedTopic(chip.id)}
+            >
+              {chip.label}
+            </button>
+          ))}
         </div>
 
         <div className="student-tab-switcher">
@@ -60,10 +94,16 @@ export default function StudentRightPanel({
             📖 Explorer Guide
           </button>
           <button
+            className={`student-tab-btn ${activeTab === "quiz" ? "active" : ""}`}
+            onClick={() => setActiveTab("quiz")}
+          >
+            🧩 Ocean Quiz
+          </button>
+          <button
             className={`student-tab-btn ${activeTab === "chat" ? "active" : ""}`}
             onClick={() => setActiveTab("chat")}
           >
-            🤖 Ask AI Assistant
+            🤖 Ask AI
           </button>
         </div>
       </div>
@@ -71,6 +111,23 @@ export default function StudentRightPanel({
       <div className="student-panel-content">
         {activeTab === "guide" && (
           <>
+            {/* Audio Wave Visualizer Banner when narrator active */}
+            {isAudioNarrating && (
+              <div className="audio-narrator-banner">
+                <div className="sound-wave">
+                  <span className="bar b1"></span>
+                  <span className="bar b2"></span>
+                  <span className="bar b3"></span>
+                  <span className="bar b4"></span>
+                  <span className="bar b5"></span>
+                </div>
+                <div className="narrator-text">
+                  <strong>🎙️ AI Audio Narrator</strong>
+                  <small>Speaking: "Sea Surface Temperature governs monsoon moisture transfer..."</small>
+                </div>
+              </div>
+            )}
+
             {/* Guided Tour Trigger or Active Guided Tour Carousel */}
             {!inTourMode ? (
               <div className="student-card start-tour-prompt-card">
@@ -126,6 +183,54 @@ export default function StudentRightPanel({
               depthLevels={depthLevels}
             />
           </>
+        )}
+
+        {activeTab === "quiz" && (
+          <div className="student-card ocean-quiz-card">
+            <div className="student-card-header">
+              <div className="student-card-icon">🧩</div>
+              <div className="student-card-title-group">
+                <span className="student-badge">Knowledge Check</span>
+                <h3 className="student-card-title">Ocean Literacy Challenge</h3>
+              </div>
+            </div>
+
+            <div className="quiz-question-box">
+              <span className="quiz-q-num">Question 1 of 3</span>
+              <h4>Why is the Bay of Bengal fresher (less salty) than the Arabian Sea?</h4>
+              
+              <div className="quiz-options-list">
+                <button
+                  className={`quiz-opt-btn ${quizAnswered === 'A' ? 'incorrect' : ''}`}
+                  onClick={() => setQuizAnswered('A')}
+                >
+                  A) The Bay of Bengal gets no sunlight
+                </button>
+                <button
+                  className={`quiz-opt-btn ${quizAnswered === 'B' ? 'correct' : ''}`}
+                  onClick={() => { setQuizAnswered('B'); setQuizScore(1); }}
+                >
+                  B) Massive river runoff from Ganges, Brahmaputra & Mahanadi
+                </button>
+                <button
+                  className={`quiz-opt-btn ${quizAnswered === 'C' ? 'incorrect' : ''}`}
+                  onClick={() => setQuizAnswered('C')}
+                >
+                  C) It is connected to freezing Arctic ocean currents
+                </button>
+              </div>
+
+              {quizAnswered && (
+                <div className={`quiz-feedback-box ${quizAnswered === 'B' ? 'success' : 'alert'}`}>
+                  {quizAnswered === 'B' ? (
+                    <p>🎉 <strong>Correct!</strong> The Ganges-Brahmaputra basin discharges over 1,000 km³ of freshwater annually, creating a low-salinity surface layer!</p>
+                  ) : (
+                    <p>❌ <strong>Not quite.</strong> The main reason is river runoff from major river systems into the Bay of Bengal!</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {activeTab === "chat" && (

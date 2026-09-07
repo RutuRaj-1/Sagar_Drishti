@@ -20,7 +20,7 @@ import LandingPage from "./components/auth/LandingPage.jsx";
 import AuthModal from "./components/auth/AuthModal.jsx";
 import AccessDenied from "./components/auth/AccessDenied.jsx";
 import UserHeaderMenu from "./components/auth/UserHeaderMenu.jsx";
-import { getCurrentRole, getStoredUser, loginWithCredentials } from "./services/authService.js";
+import { getCurrentRole, getStoredUser, loginWithCredentials, loginWithGoogle } from "./services/authService.js";
 
 
 export default function App() {
@@ -147,6 +147,15 @@ export default function App() {
   }, []);
 
   const handleOpenAuth = (action = 'login', role = 'student') => {
+    if (action === 'google') {
+      loginWithGoogle().then((res) => {
+        if (res.success) {
+          setUserRole('student');
+          handleSelectMode('explore');
+        }
+      });
+      return;
+    }
     if (action === 'quick_student') {
       loginWithCredentials('student', 'student123', 'student').then(() => {
         setUserRole('student');

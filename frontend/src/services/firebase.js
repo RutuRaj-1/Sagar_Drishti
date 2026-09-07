@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 
 // SAGAR-DRISHTI Firebase Configuration (SIH 26067)
 const firebaseConfig = {
@@ -19,9 +20,12 @@ if (typeof window !== "undefined") {
   try {
     analytics = getAnalytics(app);
   } catch (err) {
-    // Analytics fallback for SSR or local environments
     console.debug("Firebase analytics initialized with fallback", err);
   }
 }
 
-export { app, analytics, firebaseConfig };
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+export { app, analytics, auth, googleProvider, signInWithPopup, signOut, firebaseConfig };
