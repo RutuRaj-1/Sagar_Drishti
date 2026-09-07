@@ -52,10 +52,11 @@ India's INCOIS monitors **2.3 million km²** of Exclusive Economic Zone with a n
 └─────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-The platform has five main views:
+The platform has six main views:
 
 | View | What you can do |
 |---|---|
+| **🔬 Forecaster / Researcher Mode** | Operational decision-support workspace (`/forecaster` or `#forecaster`). Features technical synopses, structured AI technical analysis (Summary, Warnings, Insights, Predictions), dual-line profile validation, Pearson cross-correlations, model skill meters (24h/7d MAE & RMSE by depth layer), 4 guided expert workflow accelerators, and a technical Q&A AI assistant. |
 | **🎓 Student / Explorer Mode** | Public, story-driven ocean literacy workspace (`/explore` or `#explore`). Features layman summaries, AI-generated insights, interactive depth zone bar, location comparisons, ocean health status badge, 6-stop guided tour with voice narration, rotating facts, and an educational Q&A AI chatbot. |
 | **2D GIS Map** | Inspect any CMEMS variable as a heatmap overlay on a Leaflet map. Click a point → instant 4-year time series. Toggle animated current vectors. |
 | **3D WebGL Terrain** | Rotate the same ocean field as a Three.js height-field terrain. Enable depth-resolved Marching Cubes isosurface shells for thermocline visualization. |

@@ -13,6 +13,7 @@ import HFRadarRamaExplorer from "./components/HFRadarRamaExplorer.jsx";
 // Static import so Vite bundles Cesium in the same chunk (avoids CJS interop issues with lazy())
 import CesiumGlobeView from "./components/CesiumGlobeView.jsx";
 import StudentRightPanel from "./components/student/StudentRightPanel.jsx";
+import ForecasterRightPanel from "./components/forecaster/ForecasterRightPanel.jsx";
 
 
 export default function App() {
@@ -97,6 +98,14 @@ export default function App() {
       pathname.includes("/student")
     ) {
       setActiveTab("explore");
+    } else if (
+      hash === "#forecaster" ||
+      hash === "#researcher" ||
+      hash === "#operational" ||
+      pathname.includes("/forecaster") ||
+      pathname.includes("/researcher")
+    ) {
+      setActiveTab("forecaster");
     }
 
     api.health()
@@ -197,6 +206,23 @@ export default function App() {
     }
     if (stop.viewMode) {
       setViewMode(stop.viewMode);
+    }
+  }, [datasetMode, handleVariableChange]);
+
+  // ── Handle Expert Workflow Preset Selection ──────────────────────────────
+  const handleWorkflowPresetSelect = useCallback((preset) => {
+    if (!preset) return;
+    if (preset.datasetMode && preset.datasetMode !== datasetMode) {
+      setDatasetMode(preset.datasetMode);
+    }
+    if (preset.variable) {
+      handleVariableChange(preset.variable);
+    }
+    if (preset.depthIndex !== undefined) {
+      setDepthIndex(preset.depthIndex);
+    }
+    if (preset.viewMode) {
+      setViewMode(preset.viewMode);
     }
   }, [datasetMode, handleVariableChange]);
 
@@ -346,6 +372,21 @@ export default function App() {
 
         <nav className="topbar-tabs">
           <button
+            className={`topbar-tab forecaster-tab${activeTab === "forecaster" ? " active" : ""}`}
+            onClick={() => {
+              setActiveTab("forecaster");
+              window.location.hash = "forecaster";
+            }}
+            style={{
+              background: activeTab === "forecaster" ? "linear-gradient(135deg, #0f172a, #334155)" : "transparent",
+              color: activeTab === "forecaster" ? "#38bdf8" : "#94a3b8",
+              fontWeight: 700,
+              border: activeTab === "forecaster" ? "1.5px solid #0284c7" : "none",
+            }}
+          >
+            🔬 Forecaster Mode
+          </button>
+          <button
             className={`topbar-tab explorer-tab${activeTab === "explore" ? " active" : ""}`}
             onClick={() => {
               setActiveTab("explore");
@@ -479,9 +520,9 @@ export default function App() {
       )}
 
       {/* ═══════════════════════════════════════════════════════
-          VISUALIZATION & STUDENT EXPLORER TAB
+          VISUALIZATION, EXPLORER & FORECASTER TAB
           ═══════════════════════════════════════════════════════ */}
-      {(activeTab === "viz" || activeTab === "explore") && (
+      {(activeTab === "viz" || activeTab === "explore" || activeTab === "forecaster") && (
         <main className="main-layout">
           {/* Left panel */}
           <ControlPanel
@@ -665,7 +706,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right panel: Student / Explorer Educational Workspace or Forecaster ProfilePanel */}
+          {/* Right panel: Student / Explorer, Duty Forecaster, or Default ProfilePanel */}
           {activeTab === "explore" ? (
             <StudentRightPanel
               variable={variable}
@@ -675,6 +716,28 @@ export default function App() {
               surfaceStats={surface}
               palette={palette}
               onSelectTourStop={handleTourStopSelect}
+            />
+          ) : activeTab === "forecaster" ? (
+            <ForecasterRightPanel
+              variable={variable}
+              date={currentDate}
+              depthIndex={depthIndex}
+              depthLevels={depthLevels}
+              surfaceStats={surface}
+              palette={palette}
+              instruments={instruments}
+              gliders={gliders}
+              selectedId={selectedInstrumentId}
+              onSelectInstrument={setSelectedInstrumentId}
+              profile={profile}
+              timeSeries={timeSeries}
+              timeSeriesPoint={clickedPoint}
+              loading={profileLoading || tsLoading}
+              datasetMode={datasetMode}
+              volumetricMeta={volumetricMeta}
+              colorRange={colorRange}
+              colorScale={colorScale}
+              onSelectWorkflowPreset={handleWorkflowPresetSelect}
             />
           ) : (
             <ProfilePanel
