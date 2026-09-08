@@ -9,6 +9,8 @@ import {
   LAYMAN_VARIABLE_EXPLANATIONS,
   CHATBOT_QA_KNOWLEDGE,
 } from "../data/studentData.js";
+import { GroqChatService } from "./groqChatService.js";
+
 
 export class StudentDataProvider {
   /**
@@ -217,35 +219,18 @@ export class AIInsightsGenerator {
 
 export class AIChatbotService {
   /**
-   * Generates dynamic responses for student questions.
+   * Asynchronously generates answers using Groq AI with multi-turn conversation memory,
+   * active view context, and offline curriculum fallback.
+   */
+  static async ask(userQuestion, context = {}, history = []) {
+    return await GroqChatService.sendChatMessage(userQuestion, context, history);
+  }
+
+  /**
+   * Synchronous fallback for legacy callers.
    */
   static respond(userQuestion, context = {}) {
-    const qLower = userQuestion.toLowerCase().trim();
-
-    // Check knowledge base keyword matches first
-    for (const item of CHATBOT_QA_KNOWLEDGE) {
-      if (item.keywords.some((kw) => qLower.includes(kw))) {
-        return item.answer;
-      }
-    }
-
-    // Contextual fallback response generator
-    const varName = context.variableName || "ocean temperature";
-    const date = context.date || "current date";
-
-    if (qLower.includes("what") && qLower.includes("seeing")) {
-      return `You are exploring ${varName} across the Indian Ocean for ${date}. Red and orange shades indicate higher values (warmer or saltier water), while blue shades represent lower values!`;
-    }
-
-    if (qLower.includes("depth") || qLower.includes("deep") || qLower.includes("bottom")) {
-      return `As you go deeper into the ocean, sunlight disappears rapidly. Below 200 meters, water becomes dark and cold (often under 15°C), and pressure increases significantly!`;
-    }
-
-    if (qLower.includes("help") || qLower.includes("how")) {
-      return `You can use the Guided Tour on the right to take a step-by-step story walkthrough of India's oceans, or use the depth slider on the left panel to dive underwater!`;
-    }
-
-    // Default friendly response
-    return `Great question about ${varName}! The Indian Ocean plays a critical role in controlling India's monsoons and climate. You can click different points on the map or use the Guided Tour to learn more about how temperatures and currents change!`;
+    return GroqChatService.getOfflineFallback(userQuestion, context);
   }
 }
+

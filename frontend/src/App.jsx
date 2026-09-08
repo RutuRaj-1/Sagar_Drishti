@@ -91,7 +91,12 @@ export default function App() {
   const [datasetMode, setDatasetMode] = useState("cmems"); // "cmems" | "volumetric"
   const [variable, setVariable] = useState("tob");
   const [dateIndex, setDateIndex] = useState(600);
-  const [depthIndex, setDepthIndex] = useState(0);
+  const [depthIndex, setDepthIndex] = useState(() => {
+    const cachedDepths = getLocalCache("sd_volumetric_meta", INITIAL_VOLUMETRIC_META)?.depth_levels;
+    const defaultIndex = (cachedDepths || INITIAL_VOLUMETRIC_META.depth_levels)
+      .findIndex((depth) => Math.abs(depth - 453.94) < 0.01);
+    return defaultIndex >= 0 ? defaultIndex : 0;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
 
   // ── View & Auth State ───────────────────────────────────────────────────
@@ -201,6 +206,11 @@ export default function App() {
     if (mode === "explore") {
       setCurrentView("explore");
       setActiveTab("explore");
+      if (datasetMode === "volumetric") {
+        const availableDepths = volumetricMeta?.depth_levels || depthLevels;
+        const defaultDepthIndex = availableDepths.findIndex((depth) => Math.abs(depth - 453.94) < 0.01);
+        setDepthIndex(defaultDepthIndex >= 0 ? defaultDepthIndex : availableDepths.length - 1);
+      }
       window.location.hash = "explore";
       return;
     }
@@ -323,6 +333,9 @@ export default function App() {
     setDatasetMode(mode);
     setDateIndex(0);
     if (mode === "volumetric") {
+      const availableDepths = volumetricMeta?.depth_levels || depthLevels;
+      const defaultDepthIndex = availableDepths.findIndex((depth) => Math.abs(depth - 453.94) < 0.01);
+      setDepthIndex(defaultDepthIndex >= 0 ? defaultDepthIndex : availableDepths.length - 1);
       const newVar = "temperature";
       setVariable(newVar);
       setPalette(paletteForVariable(newVar));
@@ -580,7 +593,7 @@ export default function App() {
           ═══════════════════════════════════════════════════════ */}
       <header className="topbar">
         <div className="brand" onClick={() => handleSelectMode("landing")} style={{ cursor: "pointer" }}>
-          <div className="brand-icon">SD</div>
+          <div className="brand-icon" aria-label="Sagar Drishti ocean intelligence">🌊</div>
           <div className="brand-text">
             <h1>SAGAR<span className="accent">-DRISHTI</span></h1>
             <div className="subtitle">सागर-दृष्टि · 3D Ocean Intelligence · SIH 26067 · INCOIS</div>

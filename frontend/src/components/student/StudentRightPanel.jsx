@@ -20,7 +20,6 @@ export default function StudentRightPanel({
   const [inTourMode, setInTourMode] = useState(false);
   const [activeStopId, setActiveStopId] = useState(null);
   const [isAudioNarrating, setIsAudioNarrating] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState("all");
   const [quizScore, setQuizScore] = useState(0);
   const [quizAnswered, setQuizAnswered] = useState(null);
 
@@ -46,14 +45,6 @@ export default function StudentRightPanel({
     setActiveStopId(null);
   };
 
-  const topicChips = [
-    { id: "all", label: "All Topics" },
-    { id: "monsoon", label: "Monsoons" },
-    { id: "cyclone", label: "Cyclones" },
-    { id: "corals", label: "Coral Health" },
-    { id: "climate", label: "Climate Change" },
-  ];
-
   return (
     <aside className="student-right-panel">
       {/* Top Section Header & Tab Switcher */}
@@ -71,19 +62,6 @@ export default function StudentRightPanel({
           </div>
           <h2>Understanding India's Oceans</h2>
           <p>Interactive story-driven ocean literacy workspace</p>
-        </div>
-
-        {/* Topic Quick Chips */}
-        <div className="student-topic-chips">
-          {topicChips.map((chip) => (
-            <button
-              key={chip.id}
-              className={`topic-chip ${selectedTopic === chip.id ? "active" : ""}`}
-              onClick={() => setSelectedTopic(chip.id)}
-            >
-              {chip.label}
-            </button>
-          ))}
         </div>
 
         <div className="student-tab-switcher">
@@ -234,8 +212,15 @@ export default function StudentRightPanel({
         )}
 
         {activeTab === "chat" && (
-          <StudentChatbot variable={variable} date={date} />
+          <StudentChatbot
+            variable={variable}
+            date={date}
+            depthIndex={depthIndex}
+            depthLevels={depthLevels}
+            surfaceStats={surfaceStats}
+          />
         )}
+
       </div>
 
       {/* Educational Safety Disclaimer Footer */}

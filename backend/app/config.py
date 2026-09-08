@@ -43,6 +43,13 @@ ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
+# ── Groq AI API Configuration for SAGAR-DRISHTI Chatbots ──────────────────────
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+GROQ_FALLBACK_MODEL = "qwen/qwen3.8-27b"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+
 # ── Real Copernicus Marine Dataset (CMEMS global model, 5.8 GB) ─────────────
 NC_PATH = os.path.join(DATA_DIR, "cmems_Copernicus_Marine_Ocean_Dataset.nc")
 

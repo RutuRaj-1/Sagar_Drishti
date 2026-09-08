@@ -103,7 +103,7 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
           onClick={onGoBack}
           style={{
             background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
-            color: '#94a3b8', borderRadius: 8, padding: '6px 14px',
+            color: '#e2e8f0', borderRadius: 8, padding: '6px 14px',
             cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6,
           }}
         >
@@ -118,11 +118,11 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
           }}>🛡️</div>
           <div>
             <div style={{ fontWeight: 800, fontSize: 16, color: '#f1f5f9' }}>Admin Control Panel</div>
-            <div style={{ fontSize: 11, color: '#64748b' }}>SAGAR-DRISHTI · Role-Based Access Control</div>
+            <div style={{ fontSize: 11, color: '#cbd5e1' }}>SAGAR-DRISHTI · Role-Based Access Control</div>
           </div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: '#64748b' }}>
+          <span style={{ fontSize: 12, color: '#cbd5e1' }}>
             Signed in as: <span style={{ color: '#8b5cf6' }}>{currentUser?.email}</span>
           </span>
           <button
@@ -159,7 +159,7 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
         {/* Stats Row */}
         <div className="admin-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 28 }}>
           {[
-            { label: 'Total Users', value: stats.total, color: '#e2e8f0', icon: '👥' },
+            { label: 'Total Users', value: stats.total, color: '#212529', icon: '👥' },
             { label: 'Students', value: stats.students, color: '#0ea5e9', icon: '🎓' },
             { label: 'Forecasters', value: stats.forecasters, color: '#f59e0b', icon: '⚓' },
             { label: 'Admins', value: stats.admins, color: '#8b5cf6', icon: '🛡️' },
@@ -171,7 +171,7 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
               <div style={{ fontSize: 28 }}>{s.icon}</div>
               <div>
                 <div style={{ fontSize: 28, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{s.label}</div>
+                <div style={{ fontSize: 12, color: '#343a40', marginTop: 4 }}>{s.label}</div>
               </div>
             </div>
           ))}
@@ -180,8 +180,8 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
         {/* Search & Title */}
         <div className="admin-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>User Management</h2>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#212529' }}>User Management</h2>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#343a40' }}>
               Change user roles to control access. Changes take effect on next login.
             </p>
           </div>
@@ -212,7 +212,7 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
 
         {/* Users Table */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
+          <div style={{ textAlign: 'center', padding: 60, color: '#343a40' }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>🌊</div>
             Loading users from Firestore…
           </div>
@@ -222,7 +222,7 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
             {loadError}
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
+          <div style={{ textAlign: 'center', padding: 60, color: '#343a40' }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>👥</div>
             {users.length === 0
               ? 'No users found. Users appear here after their first sign-in.'
@@ -238,7 +238,7 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
               display: 'grid', gridTemplateColumns: '1fr 1.2fr 140px 120px 110px',
               padding: '12px 20px', background: 'rgba(255,255,255,0.05)',
               borderBottom: '1px solid rgba(255,255,255,0.06)',
-              fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em',
+              fontSize: 11, fontWeight: 700, color: '#343a40', textTransform: 'uppercase', letterSpacing: '0.05em',
             }}>
               <div>User</div>
               <div>Email</div>
@@ -269,7 +269,7 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
                 >
                   {/* Name */}
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 13.5, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13.5, color: '#212529', display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 16 }}>
                         {user.role === 'admin' ? '🛡️' : user.role === 'forecaster' ? '⚓' : '🎓'}
                       </span>
@@ -281,11 +281,11 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
                         }}>YOU</span>
                       )}
                     </div>
-                    <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>UID: {user.id?.slice(0, 12)}…</div>
+                    <div style={{ fontSize: 10, color: '#343a40', marginTop: 2 }}>UID: {user.id?.slice(0, 12)}…</div>
                   </div>
 
                   {/* Email */}
-                  <div style={{ fontSize: 13, color: '#94a3b8', wordBreak: 'break-all' }}>
+                  <div style={{ fontSize: 13, color: '#343a40', wordBreak: 'break-all' }}>
                     {user.email || '—'}
                   </div>
 

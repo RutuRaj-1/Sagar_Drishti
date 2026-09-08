@@ -78,13 +78,6 @@ export default function ForecasterRightPanel({
           >
             {bulletinDrafted ? "✓ Bulletin Drafted!" : "📋 Draft Bulletin"}
           </button>
-          <button
-            className="op-action-btn"
-            onClick={() => alert("Exporting operational netcdf anomaly contours...")}
-            title="Export Anomaly GeoJSON"
-          >
-            ⚠️ Anomaly Export
-          </button>
         </div>
 
         <div className="forecaster-tab-switcher">
@@ -197,7 +190,13 @@ export default function ForecasterRightPanel({
         )}
 
         {activeTab === "chat" && (
-          <ForecasterChatbot variable={variable} date={date} />
+          <ForecasterChatbot 
+            variable={variable} 
+            date={date}
+            depthIndex={depthIndex}
+            depthLevels={depthLevels}
+            surfaceStats={surfaceStats}
+          />
         )}
       </div>
 

@@ -32,6 +32,7 @@ from app.routers import (
     buoys,
     datasets,
     auth,
+    chatbot,
 )
 
 
@@ -97,6 +98,7 @@ app.include_router(buoys.router)
 app.include_router(analytics.router)
 app.include_router(datasets.router)
 app.include_router(auth.router)
+app.include_router(chatbot.router)
 
 
 @app.get("/api/health", tags=["health"])

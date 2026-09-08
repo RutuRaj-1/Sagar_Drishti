@@ -158,31 +158,13 @@ export class AITechnicalAnalysisGenerator {
   }
 }
 
+import { GroqChatService } from "./groqChatService.js";
+
 export class AITechnicalChatbotService {
   /**
-   * Generates technical responses for forecasters and scientists.
+   * Generates technical responses for forecasters and scientists using Groq AI.
    */
-  static respond(userQuestion, context = {}) {
-    const qLower = userQuestion.toLowerCase().trim();
-
-    // Match technical knowledge base first
-    for (const item of TECHNICAL_CHATBOT_QA) {
-      if (item.keywords.some((kw) => qLower.includes(kw))) {
-        return item.answer;
-      }
-    }
-
-    const varName = context.variableName || "tob";
-    const date = context.date || "2026-09-07";
-
-    if (qLower.includes("skill") || qLower.includes("performance") || qLower.includes("rmse")) {
-      return `For ${varName.toUpperCase()} on ${date}, domain-wide 24h RMSE is 0.49°C at the surface and 0.78°C in the 0–200m thermocline layer relative to 91 Coriolis Argo floats. Model skill remains high (r = 0.88).`;
-    }
-
-    if (qLower.includes("uncertainty") || qLower.includes("error") || qLower.includes("gap")) {
-      return `Primary forecast uncertainties arise from: 1) Localized freshwater discharge plumes in the northern Bay of Bengal, 2) Wind-stress curl parameterization during monsoon surges, and 3) Telemetry latency in deep basin sectors.`;
-    }
-
-    return `Analysis query recorded for ${varName.toUpperCase()} (${date}). Numerical fields indicate strong geostrophic alignment with satellite altimetry. For operational decision-making, consult INCOIS watch duty procedures.`;
+  static async respond(userQuestion, context = {}, history = []) {
+    return await GroqChatService.sendTechnicalChatMessage(userQuestion, context, history);
   }
 }

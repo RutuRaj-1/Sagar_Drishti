@@ -104,17 +104,17 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
       }}>
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
+          <div aria-label="Sagar Drishti ocean intelligence" style={{
             width: 40, height: 40, borderRadius: 12,
             background: 'linear-gradient(135deg, #0ea5e9, #8b5cf6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontWeight: 900, fontSize: 16, color: '#fff', boxShadow: '0 0 20px rgba(14,165,233,0.4)',
-          }}>SD</div>
+          }}>🌊</div>
           <div>
             <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em', color: '#f1f5f9' }}>
               SAGAR-DRISHTI
             </div>
-            <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.05em' }}>
+            <div style={{ fontSize: 10, color: '#fff', letterSpacing: '0.05em' }}>
               सागर-दृष्टि · INCOIS Ocean Intelligence
             </div>
           </div>
@@ -201,12 +201,12 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
           Unveiling India's Ocean Depths Through 4D Intelligence
         </h1>
 
-        <p style={{ fontSize: 17, color: '#94a3b8', maxWidth: 680, margin: '0 auto 16px', lineHeight: 1.7 }}>
+        <p style={{ fontSize: 17, color: '#cbd5e1', maxWidth: 680, margin: '0 auto 16px', lineHeight: 1.7 }}>
           SAGAR-DRISHTI is a production-grade Indian Ocean Intelligence Platform combining
           4D volumetric visualization, multi-source observational data synthesis, and role-aware
           AI decision support — built for INCOIS duty forecasters and ocean literacy.
         </p>
-        <p style={{ fontSize: 13, color: '#475569', marginBottom: 48 }}>
+        <p style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 48 }}>
           Team RutuRaj-1 · VIT · Smart India Hackathon 2026
         </p>
 
@@ -251,7 +251,7 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
         </div>
 
         {/* Scroll hint */}
-        <div style={{ marginTop: 64, color: '#334155', fontSize: 12, animation: 'bounce 2s infinite' }}>
+        <div style={{ marginTop: 64, color: '#e2e8f0', fontSize: 12, animation: 'bounce 2s infinite' }}>
           ↓ Scroll to discover
         </div>
       </section>
@@ -276,7 +276,7 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
               backdropFilter: 'blur(10px)',
             }}>
               <div style={{ fontSize: 26, fontWeight: 900, color: '#38bdf8', lineHeight: 1 }}>{s.val}</div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>{s.label}</div>
+              <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 6 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -307,7 +307,7 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontWeight: 800, fontSize: 12, color: '#38bdf8',
                 }}>{i + 1}</div>
-                <p style={{ margin: 0, fontSize: 13.5, color: '#94a3b8', lineHeight: 1.6 }}>{pt}</p>
+                <p style={{ margin: 0, fontSize: 13.5, color: '#cbd5e1', lineHeight: 1.6 }}>{pt}</p>
               </div>
             ))}
           </div>
@@ -325,7 +325,7 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
             <h2 style={{ fontSize: 'clamp(1.6rem,3vw,2.4rem)', fontWeight: 800, margin: '12px 0 8px', color: '#f1f5f9' }}>
               What SAGAR-DRISHTI Does
             </h2>
-            <p style={{ color: '#64748b', fontSize: 14, maxWidth: 540, margin: '0 auto' }}>
+            <p style={{ color: '#cbd5e1', fontSize: 14, maxWidth: 540, margin: '0 auto' }}>
               Six integrated modules covering the complete ocean intelligence lifecycle from raw data ingestion to decision support.
             </p>
           </div>
@@ -354,7 +354,7 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
                   fontSize: 22, marginBottom: 16,
                 }}>{f.icon}</div>
                 <h3 style={{ margin: '0 0 10px', fontSize: 15.5, fontWeight: 700, color: '#f1f5f9' }}>{f.title}</h3>
-                <p style={{ margin: 0, fontSize: 13, color: '#64748b', lineHeight: 1.7 }}>{f.desc}</p>
+                <p style={{ margin: 0, fontSize: 13, color: '#cbd5e1', lineHeight: 1.7 }}>{f.desc}</p>
                 <div style={{ width: 32, height: 2, background: f.color, borderRadius: 2, marginTop: 16, opacity: 0.6 }} />
               </div>
             ))}
@@ -388,10 +388,10 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
                     LAYER {step.num}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: 15, color: '#f1f5f9', marginBottom: 10 }}>{step.title}</div>
-                  <p style={{ margin: 0, fontSize: 12.5, color: '#64748b', lineHeight: 1.6 }}>{step.desc}</p>
+                  <p style={{ margin: 0, fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.6 }}>{step.desc}</p>
                 </div>
                 {i < arr.length - 1 && (
-                  <div style={{ display: 'flex', alignItems: 'center', padding: '0 8px', color: '#334155', fontSize: 20 }}>→</div>
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '0 8px', color: '#e2e8f0', fontSize: 20 }}>→</div>
                 )}
               </React.Fragment>
             ))}
@@ -410,7 +410,7 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
             <h2 style={{ fontSize: 'clamp(1.6rem,3vw,2.2rem)', fontWeight: 800, margin: '12px 0 8px', color: '#f1f5f9' }}>
               6 Live Ocean Datasets
             </h2>
-            <p style={{ color: '#64748b', fontSize: 14 }}>
+            <p style={{ color: '#cbd5e1', fontSize: 14 }}>
               All data is sourced from official scientific providers — no mock data, no placeholders.
             </p>
           </div>
@@ -424,7 +424,7 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14, color: '#f1f5f9' }}>{d.name}</div>
                   <div style={{ fontSize: 18, fontWeight: 900, color: '#38bdf8', margin: '2px 0' }}>{d.value}</div>
-                  <div style={{ fontSize: 11, color: '#475569' }}>{d.sub}</div>
+                  <div style={{ fontSize: 11, color: '#cbd5e1' }}>{d.sub}</div>
                 </div>
               </div>
             ))}
@@ -450,7 +450,7 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 100,
               }}>
                 <div style={{ fontWeight: 800, fontSize: 14, color: t.color }}>{t.name}</div>
-                <div style={{ fontSize: 10, color: '#475569' }}>{t.role}</div>
+                <div style={{ fontSize: 10, color: '#cbd5e1' }}>{t.role}</div>
               </div>
             ))}
           </div>
@@ -464,7 +464,7 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
             <h2 style={{ fontSize: 'clamp(1.4rem,2.5vw,2rem)', fontWeight: 800, margin: '0 0 8px', color: '#f1f5f9' }}>
               Role-Based Access
             </h2>
-            <p style={{ color: '#64748b', fontSize: 14 }}>
+            <p style={{ color: '#cbd5e1', fontSize: 14 }}>
               Sign in with your Google account. Role is assigned by the system admin.
             </p>
           </div>
@@ -480,7 +480,7 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
               }}>
                 <div style={{ fontSize: 32, marginBottom: 10 }}>{r.icon}</div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: r.color, marginBottom: 8 }}>{r.role}</div>
-                <p style={{ margin: 0, fontSize: 12.5, color: '#64748b', lineHeight: 1.6 }}>{r.desc}</p>
+                <p style={{ margin: 0, fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.6 }}>{r.desc}</p>
               </div>
             ))}
           </div>
@@ -509,11 +509,11 @@ export default function LandingPage({ onOpenAuth, onSelectMode, currentUser, use
         flexWrap: 'wrap', gap: 12,
         background: 'rgba(6,9,15,0.8)', backdropFilter: 'blur(12px)',
       }}>
-        <div style={{ fontSize: 12, color: '#334155' }}>
-          <span style={{ color: '#475569', fontWeight: 600 }}>SAGAR-DRISHTI सागर-दृष्टि</span>
+        <div style={{ fontSize: 12, color: '#e2e8f0' }}>
+          <span style={{ color: '#cbd5e1', fontWeight: 600 }}>SAGAR-DRISHTI सागर-दृष्टि</span>
           {' · '}Smart India Hackathon 2026 · Problem ID: SIH-26067
         </div>
-        <div style={{ fontSize: 12, color: '#334155' }}>
+        <div style={{ fontSize: 12, color: '#e2e8f0' }}>
           INCOIS · Ministry of Earth Sciences · Government of India
         </div>
       </footer>
