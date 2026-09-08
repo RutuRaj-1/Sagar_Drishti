@@ -49,7 +49,7 @@ const INITIAL_VOLUMETRIC_META = {
     { name: "v_current", long_name: "Meridional Current Velocity (V)", units: "m/s", palette: "currents", icon: "💨", category: "Velocity" },
     { name: "current_speed", long_name: "Total Current Speed (|V|)", units: "m/s", palette: "speed", icon: "🌀", category: "Velocity" }
   ],
-  depth_levels: [0, 10, 20, 50, 100, 200, 500, 1000],
+  depth_levels: [1.54, 2.65, 3.82, 5.08, 6.44, 7.93, 9.57, 11.4, 13.47, 15.81, 18.5, 21.6, 25.21, 29.44, 34.43, 40.34, 47.37, 55.76, 65.81, 77.85, 92.33, 109.73, 130.67, 155.85, 186.13, 222.48, 266.04, 318.13, 380.21, 453.94],
   dates: ["2026-08-25", "2026-08-26", "2026-08-27", "2026-08-28", "2026-08-29", "2026-08-30", "2026-08-31"],
   bbox: [60.0, 5.0, 97.0, 23.0]
 };
@@ -181,6 +181,9 @@ export default function App() {
     ) {
       setCurrentView("forecaster");
       setActiveTab("forecaster");
+      setDatasetMode("volumetric");
+      const defaultDepthIndex = INITIAL_VOLUMETRIC_META.depth_levels.findIndex((depth) => Math.abs(depth - 453.94) < 0.01);
+      setDepthIndex(defaultDepthIndex >= 0 ? defaultDepthIndex : INITIAL_VOLUMETRIC_META.depth_levels.length - 1);
     } else {
       setCurrentView("landing");
     }
@@ -217,6 +220,10 @@ export default function App() {
     if (mode === "forecaster") {
       setCurrentView("forecaster");
       setActiveTab("forecaster");
+      setDatasetMode("volumetric");
+      const availableDepths = volumetricMeta?.depth_levels || INITIAL_VOLUMETRIC_META.depth_levels;
+      const defaultDepthIndex = availableDepths.findIndex((depth) => Math.abs(depth - 453.94) < 0.01);
+      setDepthIndex(defaultDepthIndex >= 0 ? defaultDepthIndex : availableDepths.length - 1);
       window.location.hash = "forecaster";
       return;
     }
