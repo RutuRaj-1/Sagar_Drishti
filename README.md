@@ -57,8 +57,8 @@ The platform has six main views:
 | View | What you can do |
 |---|---|
 | **🌐 Landing Page & RBAC Portal** | Public entry point featuring high-resolution starry night ocean visuals, role mode selector cards, and instant single-click demo login buttons. Integrates Firebase Auth (`sagar-drishti.firebaseapp.com`) with local offline fallbacks. |
-| **🔬 Forecaster / Researcher Mode** | Operational decision-support workspace (`/forecaster` or `#forecaster`). Protected route requiring `forecaster` role credentials. Features technical synopses, structured AI technical analysis (Summary, Warnings, Insights, Predictions), dual-line profile validation, Pearson cross-correlations, model skill meters (24h/7d MAE & RMSE by depth layer), 4 guided expert workflow accelerators, and a technical Q&A AI assistant. |
-| **🎓 Student / Explorer Mode** | Public, story-driven ocean literacy workspace (`/explore` or `#explore`). Accessible by all visitors (`student`, `forecaster`, or `guest`). Features layman summaries, AI-generated insights, interactive depth zone bar, location comparisons, ocean health status badge, 6-stop guided tour with voice narration, rotating facts, and an educational Q&A AI chatbot. |
+| **🔬 Forecaster / Researcher Mode** | Operational decision-support workspace (`/forecaster` or `#forecaster`). Protected route requiring `forecaster` role credentials. Features technical synopses, structured AI technical analysis (Summary, Warnings, Insights, Predictions), dual-line profile validation, Pearson cross-correlations, model skill meters (24h/7d MAE & RMSE by depth layer), 4 guided expert workflow accelerators, and a **Groq Llama-powered Technical AI Co-Pilot** that assists with complex model discrepancies and RMSE queries. |
+| **🎓 Student / Explorer Mode** | Public, story-driven ocean literacy workspace (`/explore` or `#explore`). Accessible by all visitors (`student`, `forecaster`, or `guest`). Features layman summaries, AI-generated insights, interactive depth zone bar, location comparisons, ocean health status badge, 6-stop guided tour with voice narration, rotating facts, and a **high-speed Groq-powered Educational AI Ocean Assistant** with offline curriculum fallback. |
 | **2D GIS Map** | Inspect any CMEMS variable as a heatmap overlay on a Leaflet map. Click a point → instant 4-year time series. Toggle animated current vectors. |
 | **3D WebGL Terrain** | Rotate the same ocean field as a Three.js height-field terrain. Enable depth-resolved Marching Cubes isosurface shells for thermocline visualization. |
 | **Argo & Gliders** | Browse 91 Argo floats + 4 glider missions. Click any platform → depth profile charts (7 BGC parameters) + T-S water mass diagram + model co-location comparison. |
@@ -95,6 +95,7 @@ SAGAR-DRISHTI provides role-gated navigation and security controls:
 | **SciPy** | `1.16.1` | Interpolation, OLS regression, Pearson correlation |
 | **pandas** | `2.3.3` | Time series manipulation and date parsing |
 | **Pydantic** | `2.13.5` | Response model validation and schema generation |
+| **Groq API** | Cloud | High-speed LLM inference (`openai/gpt-oss-120b`, `qwen/qwen3.8-27b`) for AI Chatbots |
 
 ### Frontend
 
@@ -103,9 +104,11 @@ SAGAR-DRISHTI provides role-gated navigation and security controls:
 | **React** | `18` | Component model, state management, tab navigation |
 | **Vite** | `5` | Dev server, HMR, production bundle, `/api` proxy |
 | **Three.js** | `0.160` | WebGL 3D terrain mesh, orbit controls, raycasting, isosurface |
+| **CesiumJS** | `1.145` | High-precision 3D globe visualization (via `resium`) |
 | **Leaflet** | `1.9` | 2D GIS tile map, canvas raster overlays, marker layers |
 | **react-leaflet** | `4` | React bindings for Leaflet |
 | **Recharts** | `2.12` | Depth profiles, T-S diagrams, time-series, histograms, scatter |
+| **Firebase** | `12.18` | Role-Based Access Control (RBAC) and Authentication |
 | **lucide-react** | latest | Icon set |
 
 ### Data Formats
@@ -176,12 +179,17 @@ sih26067-prototype/
 │   │   ├── schemas.py                # Pydantic response models for every endpoint
 │   │   │
 │   │   ├── routers/
+│   │   │   ├── auth.py               # Authentication and RBAC endpoints
 │   │   │   ├── variables.py          # GET /api/variables, /api/variables/dates
 │   │   │   ├── model.py              # GET /api/model/surface|timeseries|stats|anomaly
 │   │   │   ├── volumetric.py         # GET /api/volumetric/meta|depth-slice|currents|profile|isosurface
 │   │   │   ├── instruments.py        # GET /api/instruments + /{id}/profile|trajectory|tsdiagram
 │   │   │   ├── gliders.py            # GET /api/gliders + /{id}/profile
-│   │   │   └── analytics.py          # GET /api/analytics/trend|correlation|region_stats
+│   │   │   ├── buoys.py              # GET /api/buoys (RAMA moored buoys)
+│   │   │   ├── hfradar.py            # GET /api/hfradar (Coastal surface velocity)
+│   │   │   ├── datasets.py           # GET /api/datasets/health
+│   │   │   ├── analytics.py          # GET /api/analytics/trend|correlation|region_stats
+│   │   │   └── chatbot.py            # POST /api/student/chat, /api/forecaster/chat (Groq API endpoints)
 │   │   │
 │   │   └── services/
 │   │       ├── netcdf_service.py     # xarray-backed 2D CMEMS reader; derives sivelo from SSH gradients
@@ -210,10 +218,14 @@ sih26067-prototype/
 │   │   ├── components/
 │   │   │   ├── OceanMap.jsx          # Leaflet map + canvas raster painter + current arrow renderer
 │   │   │   ├── Scene3D.jsx           # Three.js scene lifecycle, terrain mesh, orbit controls, raycasting
+│   │   │   ├── CesiumGlobeView.jsx   # CesiumJS global orthographic view
+│   │   │   ├── CesiumRegionalView.jsx# CesiumJS regional 3D data view
 │   │   │   ├── ControlPanel.jsx      # Dataset mode, variable picker, date/depth sliders, playback, style controls
 │   │   │   ├── ProfileChart.jsx      # Recharts depth profile, T-S diagram, dual observed/model overlay
 │   │   │   ├── StatsDashboard.jsx    # Preset locations, stats/trend/correlation panels, written interpretation
 │   │   │   ├── InstrumentSummaryPanel.jsx  # Platform card: coords, depth, MLD, thermocline, MAE/RMSE
+│   │   │   ├── HFRadarRamaExplorer.jsx # Explorer for Coastal HF Radar and RAMA Moored Buoys
+│   │   │   ├── DatasetHealthDashboard.jsx # Real-time dataset ingestion health dashboard
 │   │   │   ├── ColorbarEditor.jsx    # Palette switcher, value range slider, linear/log toggle
 │   │   │   └── VariableExplanationCard.jsx # Contextual science cards per active variable
 │   │   │
@@ -221,6 +233,11 @@ sih26067-prototype/
 │   │       ├── colormap.js           # Single source of truth for palette → RGB; used in 2D canvas + 3D vertex colors
 │   │       ├── marchingCubes.js      # Client-side isosurface extraction from 3D scalar grid
 │   │       └── indiaCoastlines.js    # High-precision vector coastline data (India, Sri Lanka, islands)
+│   │
+│   │   ├── services/                 # Frontend AI & Database services
+│   │       ├── groqChatService.js    # 3-tier resilient Groq API chatbot service with offline fallbacks
+│   │       ├── studentAdapter.js     # Connects Explorer mode to AI services
+│   │       └── forecasterAdapter.js  # Connects Copilot mode to Technical AI analytics
 │   │
 │   ├── index.html
 │   ├── package.json
@@ -496,15 +513,18 @@ cd frontend && npm run build
 - [x] 100% real scientific data — no synthetic generators anywhere
 - [x] Client-side Marching Cubes isosurface (WebGL, no server render)
 - [x] Palette-synchronized 2D/3D — same colormap function for map pixels and 3D vertex colors
+- [x] **Groq AI Chatbot Integration** — Multi-model conversational AI (`openai/gpt-oss-120b`) for both Student (Educational) and Forecaster (Technical) modes, featuring a 3-tier resilient fallback architecture.
+- [x] **CesiumJS Integration** — Added 3D global and regional views using Cesium via `resium`.
+- [x] **Firebase Authentication & RBAC** — Implemented secure role-based access control (Forecaster / Researcher / Public tiers) with offline fallbacks.
+- [x] **HF-Radar + RAMA Buoy** — Ingested and visualized coastal observation datasets and moored buoys.
+- [x] **Dataset Health Dashboard** — Real-time monitoring of dataset ingestion and API status.
 
 ### Planned for Production
 
 - [ ] **OGC WMS/WCS** — standardized raster export for national GIS interoperability
-- [ ] **HF-Radar + RAMA Buoy** — coastal observation ingestion adapters
-- [ ] **Role-Based Access Control** — Forecaster / Researcher / Public tiers
 - [ ] **Zarr + S3** — replace local NetCDF with chunked cloud object storage
 - [ ] **Live GDAC Feed** — real-time float profile ingestion via Airflow workers
-- [ ] **OAuth2 / Audit Logging** — enterprise security before INCOIS deployment
+- [ ] **Audit Logging** — enterprise security tracking before INCOIS deployment
 
 ---
 
@@ -535,5 +555,5 @@ This is a **local hackathon prototype**, not a production service:
 ---
 
 <div align="center">
-<sub>Built with ⚡ FastAPI · React · Three.js · Leaflet · xarray · for Smart India Hackathon 2026</sub>
+<sub>Built with ⚡ FastAPI · React · Three.js · Leaflet · xarray · Groq AI · for Smart India Hackathon 2026</sub>
 </div>
