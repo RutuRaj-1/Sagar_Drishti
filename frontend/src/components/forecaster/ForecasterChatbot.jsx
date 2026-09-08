@@ -1,6 +1,80 @@
 import React, { useState, useRef, useEffect } from "react";
-import ReactMarkdown from "react-markdown";
 import { AITechnicalChatbotService } from "../../services/forecasterAdapter.js";
+
+/**
+ * Custom component to format markdown-like responses (bullet points, bold text).
+ */
+function FormattedMessage({ text }) {
+  if (!text) return null;
+
+  const lines = text.split("\n");
+  const elements = [];
+
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      elements.push(<div key={idx} className="msg-spacer" />);
+      return;
+    }
+
+    // Bullet points (* or -)
+    if (trimmed.startsWith("* ") || trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
+      const bulletContent = trimmed.substring(2);
+      elements.push(
+        <div key={idx} className="msg-bullet-line">
+          <span className="bullet-dot">•</span>
+          <span>{renderInlineMarkdown(bulletContent)}</span>
+        </div>
+      );
+      return;
+    }
+
+    // Headers (### or ##)
+    if (trimmed.startsWith("### ")) {
+      elements.push(
+        <h4 key={idx} className="msg-header-3">
+          {renderInlineMarkdown(trimmed.substring(4))}
+        </h4>
+      );
+      return;
+    }
+    if (trimmed.startsWith("## ")) {
+      elements.push(
+        <h3 key={idx} className="msg-header-2">
+          {renderInlineMarkdown(trimmed.substring(3))}
+        </h3>
+      );
+      return;
+    }
+
+    // Normal paragraph line
+    elements.push(
+      <p key={idx} className="msg-paragraph">
+        {renderInlineMarkdown(trimmed)}
+      </p>
+    );
+  });
+
+  return <div className="formatted-msg-container">{elements}</div>;
+}
+
+/**
+ * Handles inline bold (**text**) and code (`code`) formatting.
+ */
+function renderInlineMarkdown(text) {
+  // Regex to split on **bold** and `code`
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return <code key={i} className="msg-inline-code">{part.slice(1, -1)}</code>;
+    }
+    return part;
+  });
+}
+
 
 const TECH_SUGGESTED_PROMPTS = [
   "What is the overall model skill and RMSE?",
@@ -131,7 +205,7 @@ export default function ForecasterChatbot({ variable, date, depthIndex, depthLev
           <div key={idx} className={`chat-bubble ${msg.sender}`}>
             <div className="bubble-content tech-content">
               {msg.sender === "ai" ? (
-                <ReactMarkdown>{msg.text}</ReactMarkdown>
+                <FormattedMessage text={msg.text} />
               ) : (
                 msg.text
               )}
