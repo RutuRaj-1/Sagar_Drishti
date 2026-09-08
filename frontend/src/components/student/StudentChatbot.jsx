@@ -70,14 +70,14 @@ export default function StudentChatbot({ variable, date }) {
     <div className="student-card student-chatbot-card">
       <div className="chatbot-header">
         <div className="chatbot-title">
-          <span className="chatbot-avatar">[AI]</span>
+          <span className="chatbot-avatar">🤖</span>
           <div>
             <h3>Ask About This Ocean View</h3>
             <small>Educational AI Ocean Assistant</small>
           </div>
         </div>
         <button className="clear-chat-btn" onClick={handleClear} title="Clear conversation">
-          Clear
+          🗑️ Clear
         </button>
       </div>
 

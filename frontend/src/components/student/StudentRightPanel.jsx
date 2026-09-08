@@ -91,19 +91,19 @@ export default function StudentRightPanel({
             className={`student-tab-btn ${activeTab === "guide" ? "active" : ""}`}
             onClick={() => setActiveTab("guide")}
           >
-            Explorer Guide
+            🧭 Explorer Guide
           </button>
           <button
             className={`student-tab-btn ${activeTab === "quiz" ? "active" : ""}`}
             onClick={() => setActiveTab("quiz")}
           >
-            Ocean Quiz
+            ❓ Ocean Quiz
           </button>
           <button
             className={`student-tab-btn ${activeTab === "chat" ? "active" : ""}`}
             onClick={() => setActiveTab("chat")}
           >
-            Ask AI
+            🤖 Ask AI
           </button>
         </div>
       </div>
@@ -122,7 +122,7 @@ export default function StudentRightPanel({
                   <span className="bar b5"></span>
                 </div>
                 <div className="narrator-text">
-                  <strong>AI Audio Narrator</strong>
+                  <strong>🎙️ AI Audio Narrator</strong>
                   <small>Speaking: "Sea Surface Temperature governs monsoon moisture transfer..."</small>
                 </div>
               </div>
@@ -132,14 +132,14 @@ export default function StudentRightPanel({
             {!inTourMode ? (
               <div className="student-card start-tour-prompt-card">
                 <div className="tour-prompt-header">
-                  <span className="tour-prompt-icon">[TOUR]</span>
+                  <span className="tour-prompt-icon">🧭</span>
                   <div>
                     <h3>Take the Guided Ocean Tour</h3>
                     <p>6 curated story stops with 3D views & voice narration</p>
                   </div>
                 </div>
                 <button className="start-tour-btn" onClick={handleStartTour}>
-                  Start Guided Tour (6 Stops)
+                  🚀 Start Guided Tour (6 Stops)
                 </button>
               </div>
             ) : (
@@ -188,7 +188,7 @@ export default function StudentRightPanel({
         {activeTab === "quiz" && (
           <div className="student-card ocean-quiz-card">
             <div className="student-card-header">
-              <div className="student-card-icon">[Q]</div>
+              <div className="student-card-icon">❓</div>
               <div className="student-card-title-group">
                 <span className="student-badge">Knowledge Check</span>
                 <h3 className="student-card-title">Ocean Literacy Challenge</h3>

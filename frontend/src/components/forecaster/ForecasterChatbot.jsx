@@ -70,14 +70,14 @@ export default function ForecasterChatbot({ variable, date }) {
     <div className="forecaster-card forecaster-chatbot-card">
       <div className="chatbot-header">
         <div className="chatbot-title">
-          <span className="chatbot-avatar">[AI]</span>
+          <span className="chatbot-avatar">🤖</span>
           <div>
             <h3>Ask About This Forecast / Data</h3>
             <small>Technical Decision-Support AI Assistant</small>
           </div>
         </div>
         <button className="clear-chat-btn" onClick={handleClear} title="Clear conversation">
-          Clear
+          🗑️ Clear
         </button>
       </div>
 

@@ -159,25 +159,25 @@ export class AIInsightsGenerator {
     if (variable === "tob" || variable === "temperature") {
       insights.push({
         type: "spatial",
-        icon: "",
+        icon: "🌡️",
         text: `The Bay of Bengal surface waters are averaging around ${meanVal}°C, which is ~1.2°C warmer than the western Arabian Sea.`,
       });
     } else if (variable === "sob" || variable === "salinity") {
       insights.push({
         type: "spatial",
-        icon: "",
+        icon: "🧂",
         text: `Salinity drops to ${minVal} PSU near river mouths in the East, while reaching ${maxVal} PSU off the western coast of Mumbai.`,
       });
     } else if (variable === "sivelo") {
       insights.push({
         type: "spatial",
-        icon: "",
+        icon: "💨",
         text: `Surface drift speed peaks at ${maxVal} m/s along the Sri Lanka Dome current jet, driving heat eastward.`,
       });
     } else {
       insights.push({
         type: "spatial",
-        icon: "",
+        icon: "🌊",
         text: `Active field shows values between ${minVal} and ${maxVal} across the Indian Ocean basin.`,
       });
     }
@@ -186,13 +186,13 @@ export class AIInsightsGenerator {
     if (depthVal > 0) {
       insights.push({
         type: "depth",
-        icon: "",
+        icon: "📏",
         text: `At ${depthVal}m depth, solar heating is minimal. Water temperatures are cooler by 4°C to 12°C compared to the surface.`,
       });
     } else {
       insights.push({
         type: "depth",
-        icon: "",
+        icon: "☀️",
         text: `Surface layer absorbs over 80% of incoming solar radiation, creating a warm, buoyant top layer.`,
       });
     }
@@ -200,14 +200,14 @@ export class AIInsightsGenerator {
     // Bullet 3: In-situ Float observation insight
     insights.push({
       type: "argo",
-      icon: "",
+      icon: "🤖",
       text: `91 BGC-Argo floats and 4 ocean gliders are currently sampling this region to validate satellite models.`,
     });
 
     // Bullet 4: Educational Warning / Takeaway
     insights.push({
       type: "warning",
-      icon: "",
+      icon: "💡",
       text: `Scientists monitor these thermal patterns because high ocean heat content provides fuel for seasonal tropical cyclones.`,
     });
 

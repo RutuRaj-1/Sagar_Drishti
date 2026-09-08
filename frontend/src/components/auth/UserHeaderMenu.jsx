@@ -14,14 +14,6 @@ const UserHeaderMenu = ({ currentMode, onNavigateMode, onOpenAuth, onLogoutSucce
 
   return (
     <div className="user-header-menu">
-      {/* Mode Status Pill */}
-      <div className="header-mode-indicator">
-        <span className="mode-dot">●</span>
-        <span className="mode-name">
-          {currentMode === 'explore' ? 'Student Workspace' : 'Forecaster Console'}
-        </span>
-      </div>
-
       {/* Account / Role Badge */}
       <div className="user-profile-trigger" onClick={() => setDropdownOpen(!dropdownOpen)}>
         <div className="user-avatar-circle" style={{

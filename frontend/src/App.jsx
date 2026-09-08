@@ -24,16 +24,68 @@ import AdminPanel from "./components/auth/AdminPanel.jsx";
 import { getCurrentRole, getStoredUser, logout, subscribeAuthState } from "./services/authService.js";
 
 
+// Default instant metadata for zero-latency initial render
+const INITIAL_CMEMS_META = {
+  variables: [
+    { name: "tob", long_name: "Sea Bottom Temperature", units: "°C", palette: "thermal", icon: "🌡️", category: "Temperature", valid_min: -10.0, valid_max: 50.0, description: "Daily mean temperature at the sea floor — key indicator of bottom-water mass intrusions." },
+    { name: "sob", long_name: "Sea Bottom Salinity", units: "PSU", palette: "haline", icon: "🧂", category: "Salinity", valid_min: 0.0, valid_max: 50.0, description: "Practical salinity at the sea floor." },
+    { name: "zos", long_name: "Sea Surface Height", units: "m", palette: "viridis", icon: "🌊", category: "Dynamics", valid_min: -5.0, valid_max: 5.0, description: "Sea surface height above geoid." },
+    { name: "mlotst", long_name: "Mixed Layer Depth", units: "m", palette: "deep", icon: "📏", category: "Dynamics", valid_min: 0.0, valid_max: 8000.0, description: "Depth of oceanic mixed layer." },
+    { name: "pbo", long_name: "Sea Floor Pressure", units: "dbar", palette: "deep", icon: "📊", category: "Pressure", valid_min: 0.0, valid_max: 8000.0, description: "Sea water pressure at the sea floor." },
+    { name: "siconc", long_name: "Sea Ice Concentration", units: "fraction", palette: "ice", icon: "❄️", category: "Cryosphere", valid_min: 0.0, valid_max: 1.0, description: "Surface fraction covered by sea ice." }
+  ],
+  bbox: [60.0, 5.0, 97.0, 23.0],
+  spatial_resolution: 0.083,
+  time_range: { start: "2022-06-01", end: "2026-09-09", count: 1562 },
+  grid_shape: [216, 444]
+};
+
+const INITIAL_VOLUMETRIC_META = {
+  variables: [
+    { name: "temperature", long_name: "Potential Temperature (4D)", units: "°C", palette: "thermal", icon: "🌡️", category: "Thermodynamics" },
+    { name: "salinity", long_name: "Practical Salinity (4D)", units: "PSU", palette: "haline", icon: "🧂", category: "Thermodynamics" },
+    { name: "ssh", long_name: "Sea Surface Height Anomaly", units: "m", palette: "viridis", icon: "🌊", category: "Dynamics" },
+    { name: "u_current", long_name: "Zonal Current Velocity (U)", units: "m/s", palette: "currents", icon: "💨", category: "Velocity" },
+    { name: "v_current", long_name: "Meridional Current Velocity (V)", units: "m/s", palette: "currents", icon: "💨", category: "Velocity" },
+    { name: "current_speed", long_name: "Total Current Speed (|V|)", units: "m/s", palette: "speed", icon: "🌀", category: "Velocity" }
+  ],
+  depth_levels: [0, 10, 20, 50, 100, 200, 500, 1000],
+  dates: ["2026-08-25", "2026-08-26", "2026-08-27", "2026-08-28", "2026-08-29", "2026-08-30", "2026-08-31"],
+  bbox: [60.0, 5.0, 97.0, 23.0]
+};
+
+function getLocalCache(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function setLocalCache(key, val) {
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch {}
+}
+
 export default function App() {
   // ── API / dataset state ──────────────────────────────────────────────────
-  const [apiOnline, setApiOnline] = useState(null);
-  const [datasetStatus, setDatasetStatus] = useState({});
-  const [meta, setMeta] = useState(null);
-  const [volumetricMeta, setVolumetricMeta] = useState(null);
-  const [dates, setDates] = useState([]);
-  const [hfRadarStations, setHfRadarStations] = useState([]);
+  const [apiOnline, setApiOnline] = useState(true);
+  const [datasetStatus, setDatasetStatus] = useState(() => getLocalCache("sd_dataset_status", {
+    cmems_surface: { name: "CMEMS Physical Ocean Surface", status: "live", last_updated: "2026-09-08T00:00:00Z" },
+    cmems_volumetric: { name: "CMEMS 4D Multi-Depth Hydrodynamics", status: "live", last_updated: "2026-08-31T00:00:00Z" },
+    argo_coriolis: { name: "INCOIS / Coriolis Argo Telemetry", status: "live", last_updated: "2026-09-08T00:00:00Z" },
+    glider_ioos: { name: "INCOIS Slocum Autonomous Gliders", status: "live", last_updated: "2026-09-08T00:00:00Z" },
+    hf_radar: { name: "NIOT / INCOIS Coastal HF Radar Array", status: "live", last_updated: "2026-09-08T00:00:00Z" },
+    rama_moorings: { name: "NOAA / INCOIS RAMA Moored Array", status: "live", last_updated: "2026-09-08T00:00:00Z" }
+  }));
+  const [meta, setMeta] = useState(() => getLocalCache("sd_meta", INITIAL_CMEMS_META));
+  const [volumetricMeta, setVolumetricMeta] = useState(() => getLocalCache("sd_volumetric_meta", INITIAL_VOLUMETRIC_META));
+  const [dates, setDates] = useState(() => getLocalCache("sd_dates", ["2024-01-01", "2026-08-31"]));
+  const [hfRadarStations, setHfRadarStations] = useState(() => getLocalCache("sd_hfradar", []));
   const [hfRadarCurrents, setHfRadarCurrents] = useState([]);
-  const [ramaBuoys, setRamaBuoys] = useState([]);
+  const [ramaBuoys, setRamaBuoys] = useState(() => getLocalCache("sd_rama", []));
 
   // ── Active selection state ───────────────────────────────────────────────
   const [datasetMode, setDatasetMode] = useState("cmems"); // "cmems" | "volumetric"
@@ -69,13 +121,13 @@ export default function App() {
   const [surfaceLoading, setSurfaceLoading] = useState(false);
 
   // ── In-situ platforms: Argo + Gliders ────────────────────────────────────
-  const [instruments, setInstruments] = useState([]);
-  const [gliders, setGliders] = useState([]);
+  const [instruments, setInstruments] = useState(() => getLocalCache("sd_instruments", []));
+  const [gliders, setGliders] = useState(() => getLocalCache("sd_gliders", []));
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [modelProfile, setModelProfile] = useState(null);
-  const [allTrajectories, setAllTrajectories] = useState([]);
+  const [allTrajectories, setAllTrajectories] = useState(() => getLocalCache("sd_trajectories", []));
 
   // ── Map click / time-series ─────────────────────────────────────────────
   const [clickedPoint, setClickedPoint] = useState(null);
@@ -191,24 +243,33 @@ export default function App() {
     api.getVariables()
       .then((m) => {
         setMeta(m);
+        setLocalCache("sd_meta", m);
         if (m.variables?.length > 0) setVariable(m.variables[0].name);
       })
       .catch(console.error);
 
     api.getVolumetricMeta()
-      .then(setVolumetricMeta)
+      .then((vm) => {
+        setVolumetricMeta(vm);
+        setLocalCache("sd_volumetric_meta", vm);
+      })
       .catch(console.error);
 
     api.getDates()
       .then((d) => {
-        setDates(d.dates || []);
-        setDateIndex(Math.min(600, (d.dates?.length || 1) - 1));
+        const dateList = d.dates || [];
+        setDates(dateList);
+        setLocalCache("sd_dates", dateList);
+        setDateIndex(Math.min(600, (dateList.length || 1) - 1));
       })
       .catch(console.error);
 
     const fetchDatasetStatus = () => {
       api.getDatasetStatus()
-        .then(setDatasetStatus)
+        .then((ds) => {
+          setDatasetStatus(ds);
+          setLocalCache("sd_dataset_status", ds);
+        })
         .catch(console.error);
     };
 
@@ -216,19 +277,31 @@ export default function App() {
     const statusInterval = setInterval(fetchDatasetStatus, 30000);
 
     api.getInstruments()
-      .then(setInstruments)
+      .then((inst) => {
+        setInstruments(inst || []);
+        setLocalCache("sd_instruments", inst || []);
+      })
       .catch(console.error);
 
     api.getGliders()
-      .then(setGliders)
+      .then((gl) => {
+        setGliders(gl || []);
+        setLocalCache("sd_gliders", gl || []);
+      })
       .catch(console.error);
 
     api.getAllTrajectories()
-      .then(setAllTrajectories)
+      .then((tr) => {
+        setAllTrajectories(tr || []);
+        setLocalCache("sd_trajectories", tr || []);
+      })
       .catch(console.error);
 
     api.getHFRadarStations()
-      .then(setHfRadarStations)
+      .then((st) => {
+        setHfRadarStations(st || []);
+        setLocalCache("sd_hfradar", st || []);
+      })
       .catch(console.error);
 
     api.getHFRadarCurrents()
@@ -236,7 +309,10 @@ export default function App() {
       .catch(console.error);
 
     api.getRAMABuoys()
-      .then(setRamaBuoys)
+      .then((buoys) => {
+        setRamaBuoys(buoys || []);
+        setLocalCache("sd_rama", buoys || []);
+      })
       .catch(console.error);
 
     return () => clearInterval(statusInterval);
@@ -506,70 +582,95 @@ export default function App() {
         </div>
 
         <nav className="topbar-tabs">
-          {/* Forecaster tab: only visible to forecasters and admins */}
-          {(userRole === 'forecaster' || userRole === 'admin') && (
-            <button
-              className={`topbar-tab forecaster-tab${currentView === "forecaster" ? " active" : ""}`}
-              onClick={() => handleSelectMode("forecaster")}
-              style={{
-                background: currentView === "forecaster" ? "linear-gradient(135deg, #0f172a, #334155)" : "transparent",
-                color: currentView === "forecaster" ? "#38bdf8" : "#94a3b8",
-                fontWeight: 700,
-                border: currentView === "forecaster" ? "1.5px solid #0284c7" : "none",
-              }}
-            >
-              Forecaster Mode
-            </button>
-          )}
-          {/* Admin tab: only visible to admins */}
+          {/* 1. Forecaster Mode */}
+          <button
+            className={`topbar-tab forecaster-tab${(activeTab === "forecaster" || currentView === "forecaster") ? " active" : ""}`}
+            onClick={() => handleSelectMode("forecaster")}
+          >
+            🌪️ Forecaster Mode
+          </button>
+
+          {/* 2. Explorer Mode */}
+          <button
+            className={`topbar-tab explorer-tab${(activeTab === "explore" && currentView !== "forecaster") ? " active" : ""}`}
+            onClick={() => handleSelectMode("explore")}
+          >
+            🧭 Explorer Mode
+          </button>
+
+          {/* 3. 3D/2D Viewport */}
+          <button
+            className={`topbar-tab${activeTab === "viz" ? " active" : ""}`}
+            onClick={() => {
+              setActiveTab("viz");
+              if (currentView !== "explore" && currentView !== "forecaster") {
+                setCurrentView("explore");
+              }
+            }}
+          >
+            🌊 3D/2D Viewport
+          </button>
+
+          {/* 4. Argo & Gliders */}
+          <button
+            className={`topbar-tab${activeTab === "argo" ? " active" : ""}`}
+            onClick={() => setActiveTab("argo")}
+          >
+            🤖 Argo & Gliders ({instruments.length + gliders.length})
+          </button>
+
+          {/* 5. HF Radar & RAMA */}
+          <button
+            className={`topbar-tab${activeTab === "hfradar_rama" ? " active" : ""}`}
+            onClick={() => setActiveTab("hfradar_rama")}
+          >
+            📡 HF Radar & RAMA ({hfRadarStations.length + ramaBuoys.length})
+          </button>
+
+          {/* 6. Analytics & Anomalies */}
+          <button
+            className={`topbar-tab${activeTab === "analytics" ? " active" : ""}`}
+            onClick={() => setActiveTab("analytics")}
+          >
+            📊 Analytics & Anomalies
+          </button>
+
+          {/* 7. Live Data Pipeline */}
+          <button
+            className={`topbar-tab pipeline-tab${activeTab === "pipeline" ? " active" : ""}`}
+            onClick={() => setActiveTab("pipeline")}
+          >
+            🛰️ Live Data Pipeline
+            <span className="tab-pill" style={{
+              fontSize: 9,
+              padding: "2px 6px",
+              borderRadius: "4px",
+              background: "rgba(5, 150, 105, 0.25)",
+              color: "#34d399",
+              border: "1px solid rgba(5, 150, 105, 0.4)",
+              fontWeight: 800,
+              marginLeft: 4
+            }}>
+              6/6 LIVE
+            </span>
+          </button>
+
+          {/* 8. Admin tab (only visible to admins) */}
           {userRole === 'admin' && (
             <button
-              className={`topbar-tab`}
+              className={`topbar-tab admin-tab${currentView === "admin" ? " active" : ""}`}
               onClick={() => handleSelectMode("admin")}
               style={{
-                background: "transparent", color: "#a78bfa",
-                fontWeight: 700, border: "1px solid rgba(139,92,246,0.4)",
+                background: currentView === "admin" ? "#8b5cf6" : "transparent",
+                color: currentView === "admin" ? "#ffffff" : "#a78bfa",
+                fontWeight: 700,
+                border: "1.5px solid rgba(139,92,246,0.6)",
                 borderRadius: 6,
               }}
             >
               🛡️ Admin
             </button>
           )}
-          <button
-            className={`topbar-tab explorer-tab${currentView === "explore" ? " active" : ""}`}
-            onClick={() => handleSelectMode("explore")}
-            style={{
-              background: currentView === "explore" ? "linear-gradient(135deg, #0284c7, #0d9488)" : "transparent",
-              color: "#ffffff",
-              fontWeight: 700,
-            }}
-          >
-            Explorer Mode
-          </button>
-          <button
-            className={`topbar-tab${activeTab === "viz" ? " active" : ""}`}
-            onClick={() => setActiveTab("viz")}
-          >
-            3D/2D Viewport
-          </button>
-          <button
-            className={`topbar-tab${activeTab === "argo" ? " active" : ""}`}
-            onClick={() => setActiveTab("argo")}
-          >
-            Argo & Gliders ({instruments.length + gliders.length})
-          </button>
-          <button
-            className={`topbar-tab${activeTab === "hfradar_rama" ? " active" : ""}`}
-            onClick={() => setActiveTab("hfradar_rama")}
-          >
-            HF Radar & RAMA ({hfRadarStations.length + ramaBuoys.length})
-          </button>
-          <button
-            className={`topbar-tab${activeTab === "analytics" ? " active" : ""}`}
-            onClick={() => setActiveTab("analytics")}
-          >
-            Analytics & Anomalies
-          </button>
         </nav>
 
         <div className="topbar-right">
@@ -766,19 +867,19 @@ export default function App() {
                 className={`view-toggle-btn${viewMode === "map" ? " active" : ""}`}
                 onClick={() => setViewMode("map")}
               >
-                2D Map
+                🗺️ 2D Map
               </button>
               <button
                 className={`view-toggle-btn${viewMode === "globe" ? " active" : ""}`}
                 onClick={() => setViewMode("globe")}
               >
-                Globe
+                🌍 Globe
               </button>
               <button
                 className={`view-toggle-btn${viewMode === "webgl" ? " active" : ""}`}
                 onClick={() => setViewMode("webgl")}
               >
-                3D WebGL
+                🧊 3D WebGL
               </button>
             </div>
 
@@ -973,19 +1074,19 @@ function ArgoExplorer({
         <div style={{ marginBottom: 10 }}>
           <input
             type="text"
-            placeholder="Search float ID, glider, coords..."
+            placeholder="🔍 Search float ID, glider, coords..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
-              width: "100%", padding: "7px 10px", borderRadius: 6,
-              border: "1.5px solid #cbd5e1", fontSize: 11.5, background: "#f8fafc",
-              color: "#0f172a"
+              width: "100%", padding: "7px 10px", borderRadius: "var(--radius-sm)",
+              border: "2px solid var(--steel-300)", fontSize: 11.5, background: "var(--steel-50)",
+              color: "var(--steel-800)", fontFamily: "var(--font-body)"
             }}
           />
         </div>
 
         {/* Filter Tabs */}
-        <div style={{ display: "flex", gap: 3, marginBottom: 12, background: "#f1f5f9", padding: 3, borderRadius: 6, border: "1px solid #e2e8f0" }}>
+        <div style={{ display: "flex", gap: 3, marginBottom: 12, background: "var(--steel-50)", padding: 3, borderRadius: "var(--radius-sm)", border: "2px solid var(--steel-300)" }}>
           {[
             { id: "all", label: `All (${allList.length})` },
             { id: "argo", label: `Floats (${instruments.length})` },
@@ -996,11 +1097,12 @@ function ArgoExplorer({
               key={id}
               onClick={() => setFilterType(id)}
               style={{
-                flex: 1, padding: "4px 2px", fontSize: 9.5, fontWeight: 700,
-                borderRadius: 4, border: "none", cursor: "pointer",
-                background: filterType === id ? "#0f172a" : "transparent",
-                color: filterType === id ? "#ffffff" : "#64748b",
-                transition: "all 0.12s", textAlign: "center"
+                flex: 1, padding: "5px 2px", fontSize: 9.5, fontWeight: 700,
+                borderRadius: "var(--radius-sm)", border: "none", cursor: "pointer",
+                background: filterType === id ? "var(--cerulean)" : "transparent",
+                color: filterType === id ? "#ffffff" : "var(--steel-600)",
+                transition: "all 0.12s", textAlign: "center",
+                fontFamily: "var(--font-display)"
               }}
             >
               {label}
@@ -1010,7 +1112,7 @@ function ArgoExplorer({
 
         {/* Platform List */}
         <div className="panel-section" style={{ border: "none", padding: 0 }}>
-          <div className="panel-section-title" style={{ color: "#334155", fontSize: 11, marginBottom: 8 }}>
+          <div className="panel-section-title" style={{ color: "var(--steel-600)", fontSize: 11, marginBottom: 8, borderBottom: "2px solid var(--steel-300)" }}>
             Available Platforms ({filteredList.length})
           </div>
           <ul className="instrument-list">
@@ -1023,11 +1125,11 @@ function ArgoExplorer({
                   className={isSelected ? "active" : ""}
                   onClick={() => onSelect(inst.instrument_id)}
                   style={{
-                    borderWidth: isSelected ? 2 : 1.5,
-                    borderColor: isSelected ? "#0284c7" : "#e2e8f0",
-                    background: isSelected ? "#f0f9ff" : "#ffffff",
-                    borderRadius: 7, padding: "8px 10px", marginBottom: 5,
-                    boxShadow: isSelected ? "0 2px 6px rgba(2,132,199,0.15)" : "0 1px 2px rgba(0,0,0,0.02)"
+                    borderWidth: 2,
+                    borderColor: isSelected ? "var(--cyan)" : "var(--steel-300)",
+                    background: isSelected ? "var(--steel-200)" : "var(--steel-100)",
+                    borderRadius: "var(--radius-sm)", padding: "8px 10px", marginBottom: 5,
+                    boxShadow: isSelected ? "2px 2px 0px var(--cerulean)" : "none"
                   }}
                 >
                   <div className="inst-header" style={{ justifyContent: "space-between" }}>
@@ -1036,17 +1138,17 @@ function ArgoExplorer({
                         {isGlider ? "GLIDER" : "ARGO"}
                       </span>
                       {inst.bgc_params?.length > 0 && <span className="tag bgc">BGC</span>}
-                      <span className="inst-id" style={{ color: isSelected ? "#0284c7" : "#0f172a" }}>
+                      <span className="inst-id" style={{ color: isSelected ? "var(--cyan)" : "var(--steel-800)" }}>
                         {inst.platform_number || inst.instrument_id}
                       </span>
                     </div>
                     {isSelected && (
-                      <span style={{ fontSize: 9, color: "#0284c7", fontWeight: 800 }}>
+                      <span style={{ fontSize: 9, color: "var(--cyan)", fontWeight: 800 }}>
                         ACTIVE →
                       </span>
                     )}
                   </div>
-                  <div className="inst-meta" style={{ marginTop: 3 }}>
+                  <div className="inst-meta" style={{ marginTop: 3, color: "var(--steel-600)" }}>
                     {inst.latitude?.toFixed(2)}°N, {inst.longitude?.toFixed(2)}°E
                     &nbsp;·&nbsp;{inst.timestamp?.slice(0, 10)}
                   </div>

@@ -28,7 +28,7 @@ export default function DidYouKnowBanner({ onJumpToStop }) {
     <div className="did-you-know-banner student-card">
       <div className="fact-header">
         <div className="fact-title">
-          <strong>Did You Know?</strong>
+          <strong>💡 Did You Know?</strong>
           <span className="fact-category-tag">{currentFact.category}</span>
         </div>
         <div className="fact-nav-btns">
@@ -44,7 +44,7 @@ export default function DidYouKnowBanner({ onJumpToStop }) {
           className="fact-jump-btn"
           onClick={() => onJumpToStop(currentFact.relatedStop)}
         >
-          <span>Explore this in Guided Tour</span>
+          <span>🧭 Explore this in Guided Tour</span>
           <span>→</span>
         </button>
       )}

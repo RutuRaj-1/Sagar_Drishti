@@ -51,30 +51,40 @@ export default function ControlPanel({
   nativeMin,
   nativeMax,
 }) {
-  if (!meta && !volumetricMeta) {
-    return (
-      <div className="panel" style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)" }}>
-        <div style={{ textAlign: "center" }}>
-          <div className="loading-spinner" style={{ margin: "0 auto 14px" }} />
-          <div style={{ fontSize: 11 }}>Loading Ocean Dataset…</div>
-        </div>
-      </div>
-    );
-  }
+  const effectiveMeta = meta || {
+    variables: [
+      { name: "tob", long_name: "Sea Bottom Temperature", units: "°C", palette: "thermal", icon: "🌡️", category: "Temperature", valid_min: -10.0, valid_max: 50.0, description: "Daily mean temperature at the sea floor — key indicator of bottom-water mass intrusions." },
+      { name: "sob", long_name: "Sea Bottom Salinity", units: "PSU", palette: "haline", icon: "🧂", category: "Salinity", valid_min: 0.0, valid_max: 50.0, description: "Practical salinity at the sea floor." },
+      { name: "zos", long_name: "Sea Surface Height", units: "m", palette: "viridis", icon: "🌊", category: "Dynamics", valid_min: -5.0, valid_max: 5.0, description: "Sea surface height above geoid." },
+      { name: "mlotst", long_name: "Mixed Layer Depth", units: "m", palette: "deep", icon: "📏", category: "Dynamics", valid_min: 0.0, valid_max: 8000.0, description: "Depth of oceanic mixed layer." },
+      { name: "pbo", long_name: "Sea Floor Pressure", units: "dbar", palette: "deep", icon: "📊", category: "Pressure", valid_min: 0.0, valid_max: 8000.0, description: "Sea water pressure at the sea floor." },
+      { name: "sivelo", long_name: "Surface Drift Velocity", units: "m/s", palette: "speed", icon: "➡️", category: "Kinematics", valid_min: 0.0, valid_max: 5.0, description: "Surface current drift speed magnitude." }
+    ],
+    lat_range: [5.0, 22.0],
+    lon_range: [68.0, 95.0],
+    time_start: "2022-06-01",
+    time_end: "2026-09-06",
+    region: "Bay of Bengal + Arabian Sea (5°N–22°N, 68°E–95°E)"
+  };
 
-  const currentDate = dates?.[dateIndex] ?? meta?.time_start ?? "2026-08-31";
+  const effectiveVolumetric = volumetricMeta || {
+    variables: [
+      { name: "temperature", long_name: "Potential Temperature", units: "°C", icon: "🌡️" },
+      { name: "salinity", long_name: "Practical Salinity", units: "PSU", icon: "🧂" },
+      { name: "chlorophyll", long_name: "Chlorophyll-a", units: "mg/m³", icon: "🌿" },
+      { name: "u_current", long_name: "Zonal Current (Eastward)", units: "m/s", icon: "➡️" },
+      { name: "v_current", long_name: "Meridional Current (Northward)", units: "m/s", icon: "⬆️" },
+    ],
+    depth_levels: [0, 10, 20, 50, 100, 200, 500, 1000]
+  };
+
+  const currentDate = dates?.[dateIndex] ?? effectiveMeta?.time_start ?? "2026-08-31";
   const totalDates = dates?.length ?? 1;
   const currentDepth = depthLevels[depthIndex] ?? 0;
 
   const activeVariables = datasetMode === "volumetric"
-    ? (volumetricMeta?.variables || [
-        { name: "temperature", long_name: "Potential Temperature", units: "°C", icon: "🌡️" },
-        { name: "salinity", long_name: "Practical Salinity", units: "PSU", icon: "🧂" },
-        { name: "chlorophyll", long_name: "Chlorophyll-a", units: "mg/m³", icon: "🌿" },
-        { name: "u_current", long_name: "Zonal Current (Eastward)", units: "m/s", icon: "➡️" },
-        { name: "v_current", long_name: "Meridional Current (Northward)", units: "m/s", icon: "⬆️" },
-      ])
-    : (meta?.variables || []);
+    ? (effectiveVolumetric.variables || [])
+    : (effectiveMeta.variables || []);
 
   return (
     <div className="panel">

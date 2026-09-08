@@ -103,34 +103,34 @@ export class AITechnicalAnalysisGenerator {
       if (parseFloat(maxVal) > 30.0) {
         warnings.push({
           level: "CRITICAL",
-          icon: "",
+          icon: "⚠️",
           text: `Positive SST anomaly exceeds +2.0°C threshold (peak ${maxVal}°C) near 16.5°N, 84.2°E — Marine Heatwave Category II (Strong).`,
         });
       }
     }
     warnings.push({
       level: "MODERATE",
-      icon: "",
+      icon: "⚡",
       text: `Subsurface thermocline layer (50m–150m) exhibits elevated model variance (RMSE = 0.78°C). Cross-validation advised.`,
     });
     warnings.push({
       level: "INFO",
-      icon: "",
+      icon: "🛰️",
       text: `Telemetry coverage gap detected in South Andaman basin (>36h since last float surfacing).`,
     });
 
     // 3. Key Insights
     const insights = [
       {
-        icon: "",
+        icon: "🔬",
         text: `Argo float 2902871 co-located profile at 12.4°N, 86.8°E validates model SST within 0.28°C (Obs: 29.12°C vs Model: 29.40°C).`,
       },
       {
-        icon: "",
+        icon: "🌊",
         text: `Anticyclonic warm-core eddy centered at 16.5°N, 84.2°E displays SSH anomaly +0.18m and deep thermocline depression down to 140m.`,
       },
       {
-        icon: "",
+        icon: "📊",
         text: `Cross-basin salinity gradient (32.1 PSU in North to 35.8 PSU off Malabar) confirms heavy river plume stratification in Bay of Bengal.`,
       },
     ];
@@ -139,17 +139,17 @@ export class AITechnicalAnalysisGenerator {
     const predictions = [
       {
         horizon: "72 Hours",
-        icon: "",
+        icon: "📈",
         text: `Ensemble mean forecasts 72h persistence of positive SST anomaly (+1.8°C to +2.2°C) with 78% probability across central Bay of Bengal.`,
       },
       {
-        horizon: " Monsoon Drift",
-        icon: "",
+        horizon: "Monsoon Drift",
+        icon: "💨",
         text: `South-West Monsoon Current jet is predicted to intensify surface drift (sivelo > 1.35 m/s) south of Sri Lanka over next 5 days.`,
       },
       {
-        horizon: " Mixing Risk",
-        icon: "",
+        horizon: "Mixing Risk",
+        icon: "🌀",
         text: `Vertical current shear at 30m–60m depth may trigger entrainment mixing, cooling surface SST by ~0.3°C/day.`,
       },
     ];

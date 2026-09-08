@@ -8,23 +8,31 @@
 
 const BASE = import.meta.env.VITE_API_BASE || "";
 
-async function getJSON(path) {
+async function getJSON(path, timeoutMs = 8000) {
   let role = 'guest';
   try {
     const stored = localStorage.getItem('sagar_drishti_user');
     if (stored) role = JSON.parse(stored).role || 'guest';
   } catch (e) {}
 
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      'X-User-Role': role
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      signal: controller.signal,
+      headers: {
+        'X-User-Role': role
+      }
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`API error ${res.status} on ${path}: ${detail}`);
     }
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`API error ${res.status} on ${path}: ${detail}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json();
 }
 
 export const api = {

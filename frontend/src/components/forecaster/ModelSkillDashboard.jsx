@@ -7,7 +7,7 @@ export default function ModelSkillDashboard() {
   return (
     <div className="forecaster-card model-skill-card">
       <div className="forecaster-card-header">
-        <div className="forecaster-card-icon">[SKILL]</div>
+        <div className="forecaster-card-icon">🎯</div>
         <div className="forecaster-card-title-group">
           <span className="forecaster-badge">Model Verification</span>
           <h3 className="forecaster-card-title">Forecast Skill & Data Quality</h3>

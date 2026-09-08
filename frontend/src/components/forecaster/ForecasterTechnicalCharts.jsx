@@ -45,10 +45,10 @@ export default function ForecasterTechnicalCharts({
 
         <div className="chart-export-btns">
           <button className="export-btn" onClick={handleExportCSV} title="Export CSV dataset">
-            CSV
+            📥 CSV
           </button>
           <button className="export-btn" onClick={handleExportPNG} title="Export PNG graphic">
-            PNG
+            🖼️ PNG
           </button>
         </div>
       </div>
@@ -59,19 +59,19 @@ export default function ForecasterTechnicalCharts({
           className={`chart-subtab-btn ${chartSubTab === "profile" ? "active" : ""}`}
           onClick={() => setChartSubTab("profile")}
         >
-          Dual-Line Profiles
+          📈 Dual-Line Profiles
         </button>
         <button
           className={`chart-subtab-btn ${chartSubTab === "stats" ? "active" : ""}`}
           onClick={() => setChartSubTab("stats")}
         >
-          Anomaly Stats & Histogram
+          📊 Anomaly Stats & Histogram
         </button>
         <button
           className={`chart-subtab-btn ${chartSubTab === "correlation" ? "active" : ""}`}
           onClick={() => setChartSubTab("correlation")}
         >
-          Pearson Correlation
+          🔗 Pearson Correlation
         </button>
       </div>
 
@@ -184,7 +184,7 @@ export default function ForecasterTechnicalCharts({
             </div>
 
             <div className="corr-interpretation-box">
-              <span>[NOTE]</span>
+              <span>💡</span>
               <p>{correlation.interpretation}</p>
             </div>
           </div>

@@ -62,8 +62,8 @@ export default function ForecasterRightPanel({
       <div className="forecaster-panel-top">
         <div className="forecaster-panel-banner">
           <div className="forecaster-status-row">
-            <span className="banner-badge forecaster-mode-tag">Duty Forecaster Mode</span>
-            <span className="live-telemetry-chip">Live Telemetry 100%</span>
+            <span className="banner-badge forecaster-mode-tag">🔬 Duty Forecaster Mode</span>
+            <span className="live-telemetry-chip">📡 Live Telemetry 100%</span>
           </div>
           <h2>Operational Decision Support</h2>
           <p>Model verification, error metrics & AI-assisted diagnostic guidance</p>
@@ -76,14 +76,14 @@ export default function ForecasterRightPanel({
             onClick={handleDraftBulletin}
             title="Generate INCOIS Bulletin Draft"
           >
-            {bulletinDrafted ? "Bulletin Drafted!" : "Draft Bulletin"}
+            {bulletinDrafted ? "✓ Bulletin Drafted!" : "📋 Draft Bulletin"}
           </button>
           <button
             className="op-action-btn"
             onClick={() => alert("Exporting operational netcdf anomaly contours...")}
             title="Export Anomaly GeoJSON"
           >
-            Anomaly Export
+            ⚠️ Anomaly Export
           </button>
         </div>
 
@@ -92,19 +92,19 @@ export default function ForecasterRightPanel({
             className={`forecaster-tab-btn ${activeTab === "analysis" ? "active" : ""}`}
             onClick={() => setActiveTab("analysis")}
           >
-            Diagnostics
+            📊 Diagnostics
           </button>
           <button
             className={`forecaster-tab-btn ${activeTab === "logbook" ? "active" : ""}`}
             onClick={() => setActiveTab("logbook")}
           >
-            Watch Logbook
+            📝 Watch Logbook
           </button>
           <button
             className={`forecaster-tab-btn ${activeTab === "chat" ? "active" : ""}`}
             onClick={() => setActiveTab("chat")}
           >
-            AI Co-Pilot
+            🤖 AI Co-Pilot
           </button>
         </div>
       </div>
@@ -165,7 +165,7 @@ export default function ForecasterRightPanel({
         {activeTab === "logbook" && (
           <div className="forecaster-card watch-logbook-card">
             <div className="forecaster-card-header">
-              <div className="forecaster-card-icon">[LOG]</div>
+              <div className="forecaster-card-icon">📝</div>
               <div className="forecaster-card-title-group">
                 <span className="forecaster-badge">Duty Operations</span>
                 <h3 className="forecaster-card-title">Watch Officer Logbook</h3>

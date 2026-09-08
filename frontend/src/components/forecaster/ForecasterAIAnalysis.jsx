@@ -21,7 +21,7 @@ export default function ForecasterAIAnalysis({
   return (
     <div className="forecaster-card forecaster-ai-card">
       <div className="forecaster-card-header">
-        <div className="forecaster-card-icon">[AI]</div>
+        <div className="forecaster-card-icon">🧠</div>
         <div className="forecaster-card-title-group">
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span className="forecaster-badge tech-ai-badge">AI Technical Decision Support</span>
@@ -33,7 +33,7 @@ export default function ForecasterAIAnalysis({
       {/* 1. Technical Summary */}
       <div className="analysis-section">
         <div className="analysis-section-title">
-          1. Technical Synopsis
+          1. 📋 Technical Synopsis
         </div>
         <p className="analysis-text">{analysis.summary}</p>
       </div>
@@ -41,13 +41,15 @@ export default function ForecasterAIAnalysis({
       {/* 2. Warnings & Anomaly Alerts */}
       <div className="analysis-section">
         <div className="analysis-section-title">
-          2. Warnings & Anomaly Alerts ({analysis.warnings.length})
+          2. ⚠️ Warnings & Anomaly Alerts ({analysis.warnings.length})
         </div>
         <div className="warnings-list">
           {analysis.warnings.map((w, idx) => (
             <div key={idx} className={`warning-item ${w.level.toLowerCase()}`}>
               <div className="warn-content">
-                <span className={`warn-level-tag ${w.level.toLowerCase()}`}>{w.level}</span>
+                <span className={`warn-level-tag ${w.level.toLowerCase()}`}>
+                  {w.icon ? `${w.icon} ` : ""}{w.level}
+                </span>
                 <span className="warn-text">{w.text}</span>
               </div>
             </div>
@@ -58,12 +60,14 @@ export default function ForecasterAIAnalysis({
       {/* 3. Key Observations & Model Skills */}
       <div className="analysis-section">
         <div className="analysis-section-title">
-          3. Observation Cross-Validation Insights
+          3. 🔬 Observation Cross-Validation Insights
         </div>
         <div className="insights-tech-list">
           {analysis.insights.map((item, idx) => (
             <div key={idx} className="tech-insight-item">
-              <span className="tech-insight-text">{item.text}</span>
+              <span className="tech-insight-text">
+                {item.icon ? `${item.icon} ` : ""}{item.text}
+              </span>
             </div>
           ))}
         </div>
@@ -72,13 +76,13 @@ export default function ForecasterAIAnalysis({
       {/* 4. Ensemble Predictions */}
       <div className="analysis-section">
         <div className="analysis-section-title">
-          4. 72h Ensemble & Dynamics Predictions
+          4. 📈 72h Ensemble & Dynamics Predictions
         </div>
         <div className="predictions-list">
           {analysis.predictions.map((p, idx) => (
             <div key={idx} className="pred-item">
               <div className="pred-header">
-                <span className="pred-horizon">{p.horizon}</span>
+                <span className="pred-horizon">{p.icon ? `${p.icon} ` : ""}{p.horizon}</span>
               </div>
               <p className="pred-text">{p.text}</p>
             </div>
@@ -88,7 +92,7 @@ export default function ForecasterAIAnalysis({
 
       <div className="forecaster-disclaimer-box">
         <small>
-          Note: AI-assisted analytical guidance derived from live Copernicus model assimilation & Coriolis Argo telemetry. For decision support only.
+          💡 Note: AI-assisted analytical guidance derived from live Copernicus model assimilation & Coriolis Argo telemetry. For decision support only.
         </small>
       </div>
     </div>
