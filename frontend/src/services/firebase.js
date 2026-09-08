@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 
 // SAGAR-DRISHTI Firebase Configuration (SIH 26067 — Project: sagar-drishti)
 const firebaseConfig = {
@@ -27,7 +27,12 @@ if (typeof window !== "undefined") {
 }
 
 const auth = getAuth(app);
-const db = getFirestore(app);
+// Long-polling keeps Firestore usable when WebChannel/WebSocket traffic is
+// blocked by a browser extension, proxy, VPN, or restrictive network.
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  useFetchStreams: false,
+});
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 

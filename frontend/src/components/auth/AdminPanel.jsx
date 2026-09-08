@@ -13,6 +13,7 @@ const ROLE_COLORS = {
 const AdminPanel = ({ onGoBack, onLogout }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState({});
   const [changed, setChanged] = useState({});
   const [saveStatus, setSaveStatus] = useState({});
@@ -22,13 +23,22 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
-    const list = await getAllUsers();
-    // Sort: admins first, then forecasters, then students
-    list.sort((a, b) => {
-      const order = { admin: 0, forecaster: 1, student: 2 };
-      return (order[a.role] ?? 3) - (order[b.role] ?? 3);
-    });
-    setUsers(list);
+    setLoadError('');
+    try {
+      const list = await getAllUsers();
+      // Sort: admins first, then forecasters, then students
+      list.sort((a, b) => {
+        const order = { admin: 0, forecaster: 1, student: 2 };
+        return (order[a.role] ?? 3) - (order[b.role] ?? 3);
+      });
+      setUsers(list);
+    } catch (err) {
+      console.error('Could not load Firestore users:', err);
+      setUsers([]);
+      setLoadError(err.code === 'permission-denied'
+        ? 'Firestore denied this request. Publish firestore.rules in the correct Firebase project and sign in again.'
+        : `Could not load Firestore users: ${err.message || 'unknown error'}`);
+    }
     setLoading(false);
   }, []);
 
@@ -75,14 +85,14 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
   };
 
   return (
-    <div style={{
+    <div className="admin-panel" style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #0a0e1a 0%, #0f172a 50%, #1a0a2e 100%)',
       color: '#e2e8f0',
       fontFamily: "'Inter', sans-serif",
     }}>
       {/* Header */}
-      <div style={{
+      <div className="admin-panel-header" style={{
         background: 'rgba(15,23,42,0.95)',
         borderBottom: '1px solid rgba(139,92,246,0.3)',
         padding: '0 32px',
@@ -145,9 +155,9 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="admin-panel-content" style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
         {/* Stats Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 28 }}>
+        <div className="admin-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 28 }}>
           {[
             { label: 'Total Users', value: stats.total, color: '#e2e8f0', icon: '👥' },
             { label: 'Students', value: stats.students, color: '#0ea5e9', icon: '🎓' },
@@ -168,7 +178,7 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
         </div>
 
         {/* Search & Title */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div className="admin-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>User Management</h2>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
@@ -206,6 +216,11 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
             <div style={{ fontSize: 32, marginBottom: 12 }}>🌊</div>
             Loading users from Firestore…
           </div>
+        ) : loadError ? (
+          <div style={{ textAlign: 'center', padding: 60, color: '#b91c1c' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>!</div>
+            {loadError}
+          </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>👥</div>
@@ -214,7 +229,7 @@ const AdminPanel = ({ onGoBack, onLogout }) => {
               : 'No users match your search.'}
           </div>
         ) : (
-          <div style={{
+          <div className="admin-users-table" style={{
             background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: 14, overflow: 'hidden',
           }}>

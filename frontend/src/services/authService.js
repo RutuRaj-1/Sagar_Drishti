@@ -111,13 +111,13 @@ export const loginWithGoogle = async () => {
     const result = await signInWithPopup(auth, googleProvider);
     const fbUser = result.user;
 
-    // Resolve role from Firestore (failsafe to 'student' in <1.5s)
+    // Resolve and persist the role before completing login.
     let role = 'student';
     try {
       role = await ensureUserDoc(fbUser.uid, fbUser.email, fbUser.displayName || '');
     } catch (e) {
-      console.warn("ensureUserDoc fallback to student:", e);
-      role = 'student';
+      console.error("Google login could not create the Firestore user document:", e);
+      throw new Error(`Signed in, but Firestore user setup failed: ${e.message || 'check Firestore rules'}`);
     }
 
     const user = {

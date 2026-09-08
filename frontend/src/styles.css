@@ -4729,3 +4729,72 @@ input[type="range"]:focus {
 
 .google-icon { flex-shrink: 0; }
 
+/* ── Admin Control Panel ───────────────────────────────────── */
+.admin-panel {
+  min-height: 100vh;
+  background: var(--glacial-bg) !important;
+  color: var(--text) !important;
+  font-family: var(--font-body) !important;
+}
+
+.admin-panel-header {
+  background: var(--navy) !important;
+  border-bottom-color: var(--cerulean) !important;
+}
+
+.admin-panel-content {
+  width: 100%;
+}
+
+.admin-panel input,
+.admin-panel select {
+  font-family: var(--font-body);
+}
+
+@media (max-width: 800px) {
+  .admin-panel-header {
+    height: auto !important;
+    min-height: var(--topbar-h);
+    padding: 10px 16px !important;
+    flex-wrap: wrap;
+  }
+
+  .admin-panel-header > div:last-child {
+    width: 100%;
+    margin-left: 0 !important;
+    justify-content: flex-end;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .admin-toolbar {
+    align-items: stretch !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .admin-toolbar input {
+    width: 100% !important;
+  }
+
+  .admin-users-table {
+    overflow-x: auto;
+  }
+
+  .admin-users-table > div {
+    min-width: 760px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-panel-content {
+    padding: 20px 14px !important;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+

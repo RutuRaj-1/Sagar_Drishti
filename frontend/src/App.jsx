@@ -46,6 +46,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState("landing"); // "landing" | "explore" | "forecaster" | "admin"
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [userRole, setUserRole] = useState(getCurrentRole());
+  const [authReady, setAuthReady] = useState(false);
 
   // ── Display settings ─────────────────────────────────────────────────────
   const [viewMode, setViewMode] = useState("map"); // "map" | "globe" | "webgl"
@@ -112,6 +113,8 @@ export default function App() {
     ) {
       setCurrentView("explore");
       setActiveTab("explore");
+    } else if (hash === "#admin" || pathname.includes("/admin")) {
+      setCurrentView("admin");
     } else if (
       hash === "#forecaster" ||
       hash === "#researcher" ||
@@ -132,6 +135,7 @@ export default function App() {
       if (user && role) {
         setUserRole(role);
       }
+      setAuthReady(true);
     });
     return unsub;
   }, []);
@@ -449,6 +453,7 @@ export default function App() {
 
   // ── Render 1b: Admin Panel ───────────────────────────────────────────────
   if (currentView === "admin") {
+    if (!authReady) return null;
     if (userRole !== 'admin') {
       handleSelectMode('explore');
       return null;
@@ -466,7 +471,9 @@ export default function App() {
   }
 
   // ── Render 2: Access Denied Guard for Forecaster Mode ───────────────────
-  if (currentView === "forecaster" && userRole !== "forecaster") {
+  if (currentView === "forecaster" && !authReady) return null;
+
+  if (currentView === "forecaster" && userRole !== "forecaster" && userRole !== "admin") {
     return (
       <>
         <AccessDenied 

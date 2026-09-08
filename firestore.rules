@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Keep this email in sync with frontend/src/services/firestoreService.js.
+    // It bootstraps the first admin before an admin role document exists.
+    function bootstrapAdmin() {
+      return signedIn() && request.auth.token.email == 'bhomeruturaj@gmail.com';
+    }
+
+    // Keep this email in sync with frontend/src/services/firestoreService.js.
+    // Bootstrap forecaster demo account.
+    function bootstrapForecaster() {
+      return signedIn() && request.auth.token.email == 'forecaster.incois.in@gmail.com';
+    }
+
+    function isAdmin() {
+      return bootstrapAdmin()
+        || (signedIn()
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    match /users/{userId} {
+      // A signed-in user can read their own role; admins can list all users.
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+
+      // New accounts can create their own student record, or bootstrap accounts can set their designated role.
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.uid == request.auth.uid
+        && (request.resource.data.role == 'student'
+            || (bootstrapForecaster() && request.resource.data.role == 'forecaster')
+            || (bootstrapAdmin() && (request.resource.data.role == 'admin' || request.resource.data.role == 'student')));
+
+      // Users cannot change their own role unless they are bootstrap accounts or admins.
+      allow update: if isAdmin()
+        || (bootstrapForecaster() && request.resource.data.role == 'forecaster')
+        || (signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.role == resource.data.role);
+
+      allow delete: if isAdmin();
+    }
+  }
+}
