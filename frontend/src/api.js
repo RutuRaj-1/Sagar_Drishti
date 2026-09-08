@@ -8,31 +8,55 @@
 
 const BASE = import.meta.env.VITE_API_BASE || "";
 
-async function getJSON(path, timeoutMs = 8000) {
+const inflight = new Map();
+const memCache = new Map();
+
+async function getJSON(path, timeoutMs = 25000, useCache = true) {
+  if (useCache && memCache.has(path)) {
+    return memCache.get(path);
+  }
+  if (inflight.has(path)) {
+    return inflight.get(path);
+  }
+
   let role = 'guest';
   try {
     const stored = localStorage.getItem('sagar_drishti_user');
     if (stored) role = JSON.parse(stored).role || 'guest';
   } catch (e) {}
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const res = await fetch(`${BASE}${path}`, {
-      signal: controller.signal,
-      headers: {
-        'X-User-Role': role
+  const doFetch = async (retries = 2) => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(`${BASE}${path}`, {
+          signal: controller.signal,
+          headers: {
+            'X-User-Role': role
+          }
+        });
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          throw new Error(`API error ${res.status} on ${path}: ${detail}`);
+        }
+        const data = await res.json();
+        if (useCache) memCache.set(path, data);
+        return data;
+      } catch (err) {
+        if (attempt === retries) throw err;
+        await new Promise(r => setTimeout(r, 600));
+      } finally {
+        clearTimeout(timer);
       }
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`API error ${res.status} on ${path}: ${detail}`);
     }
-    return await res.json();
-  } finally {
-    clearTimeout(timer);
-  }
+  };
+
+  const promise = doFetch().finally(() => {
+    inflight.delete(path);
+  });
+  inflight.set(path, promise);
+  return promise;
 }
 
 export const api = {

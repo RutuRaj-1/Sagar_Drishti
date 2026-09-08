@@ -35,13 +35,26 @@ from app.routers import (
 )
 
 
+import time
+from app.services import netcdf_service
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Start APScheduler and trigger background data refresh
+    # Startup: Prewarm cache in thread so first page load is instant (<1ms)
+    threading.Thread(target=netcdf_service.prewarm_cache, daemon=True, name="prewarm-cache").start()
     start_scheduler()
-    # Run initial refresh in non-blocking thread
+
+    def _delayed_refresh():
+        time.sleep(15)
+        try:
+            DataRefreshService.refresh_all()
+        except Exception:
+            pass
+
+    # Run initial refresh with 15s delay to ensure frontend connects without competition
     refresh_thread = threading.Thread(
-        target=DataRefreshService.refresh_all,
+        target=_delayed_refresh,
         daemon=True,
         name="initial-ocean-refresh"
     )

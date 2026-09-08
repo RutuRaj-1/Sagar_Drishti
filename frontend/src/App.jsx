@@ -117,7 +117,7 @@ export default function App() {
   const [isosurfaceGrid, setIsosurfaceGrid] = useState(null);
 
   // ── Surface & Depth slice data ───────────────────────────────────────────
-  const [surface, setSurface] = useState(null);
+  const [surface, setSurface] = useState(() => getLocalCache("sd_surface", null));
   const [surfaceLoading, setSurfaceLoading] = useState(false);
 
   // ── In-situ platforms: Argo + Gliders ────────────────────────────────────
@@ -389,9 +389,12 @@ export default function App() {
       const depthVal = volumetricMeta?.depth_levels?.[depthIndex] ?? 0;
       api.getDepthSlice(variable, date, depthVal, 2)
         .then((s) => {
-          setSurface(s);
-          if (s && s.min_value !== undefined && s.max_value !== undefined) {
-            setColorRange({ min: s.min_value, max: s.max_value });
+          if (s && s.values) {
+            setSurface(s);
+            setLocalCache("sd_surface", s);
+            if (s.min_value !== undefined && s.max_value !== undefined) {
+              setColorRange({ min: s.min_value, max: s.max_value });
+            }
           }
         })
         .catch(console.error)
@@ -399,9 +402,12 @@ export default function App() {
     } else {
       api.getSurface(variable, date, 2)
         .then((s) => {
-          setSurface(s);
-          if (s && s.min_value !== undefined && s.max_value !== undefined) {
-            setColorRange({ min: s.min_value, max: s.max_value });
+          if (s && s.values) {
+            setSurface(s);
+            setLocalCache("sd_surface", s);
+            if (s.min_value !== undefined && s.max_value !== undefined) {
+              setColorRange({ min: s.min_value, max: s.max_value });
+            }
           }
         })
         .catch(console.error)

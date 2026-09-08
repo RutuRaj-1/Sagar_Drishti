@@ -28,8 +28,10 @@ import numpy as np
 import xarray as xr
 
 from app import config
+from app.services.dataset_lock import NETCDF_LOCK
 
 _cache: dict = {}
+_meta_cache: Optional[dict] = None
 
 # ── Public-facing variable catalogue (mapped FROM real CMEMS names) ──────────
 # API users address variables by friendly name; service translates to NC name.
@@ -98,8 +100,9 @@ def _load_volumetric_dataset() -> xr.Dataset:
             f"Real 4D CMEMS NetCDF not found at {path}. "
             "Download it with copernicusmarine CLI (see backend/data/download_real_4d_cmems.py)."
         )
-    ds = xr.open_dataset(path, engine="netcdf4")
-    return ds
+    with NETCDF_LOCK:
+        ds = xr.open_dataset(path, engine="netcdf4")
+        return ds
 
 
 def _coord_keys(ds: xr.Dataset):
@@ -121,33 +124,56 @@ def get_volumetric_metadata() -> Dict[str, Any]:
     - Actual temporal coverage
     - Spatial extent
     """
-    ds = _load_volumetric_dataset()
-    lat_key, lon_key = _coord_keys(ds)
+    global _meta_cache
+    if _meta_cache is not None:
+        return _meta_cache
 
-    depths = [round(float(d), 2) for d in ds.depth.values]
-    # Extract real dates from the 4D dataset itself (not the 2D CMEMS dataset)
-    dates = [str(t)[:10] for t in ds.time.values]
+    with NETCDF_LOCK:
+        if _meta_cache is not None:
+            return _meta_cache
+        ds = _load_volumetric_dataset()
+        lat_key, lon_key = _coord_keys(ds)
 
-    var_list = []
-    for friendly_name, info in VOLUMETRIC_VARS.items():
-        nc_name = info["nc_name"]
-        if nc_name not in ds.data_vars:
-            continue
-        raw = ds[nc_name].values.astype(np.float32)
-        valid = raw[~np.isnan(raw)]
-        var_list.append({
-            "name":       friendly_name,
-            "nc_name":    nc_name,
-            "long_name":  info["long_name"],
-            "units":      info["units"],
-            "palette":    info["palette"],
-            "category":   info["category"],
-            "icon":       info["icon"],
-            "color":      info["color"],
-            "min_value":  round(float(valid.min()), 3) if len(valid) > 0 else None,
-            "max_value":  round(float(valid.max()), 3) if len(valid) > 0 else None,
-            "mean_value": round(float(valid.mean()), 3) if len(valid) > 0 else None,
-        })
+        depths = [round(float(d), 2) for d in ds.depth.values]
+        dates = [str(t)[:10] for t in ds.time.values]
+
+        var_list = []
+        for friendly_name, info in VOLUMETRIC_VARS.items():
+            nc_name = info["nc_name"]
+            if nc_name not in ds.data_vars:
+                continue
+            raw = ds[nc_name].values.astype(np.float32)
+            valid = raw[~np.isnan(raw)]
+            var_list.append({
+                "name":       friendly_name,
+                "nc_name":    nc_name,
+                "long_name":  info["long_name"],
+                "units":      info["units"],
+                "palette":    info["palette"],
+                "category":   info["category"],
+                "icon":       info["icon"],
+                "color":      info["color"],
+                "min_value":  round(float(valid.min()), 3) if len(valid) > 0 else None,
+                "max_value":  round(float(valid.max()), 3) if len(valid) > 0 else None,
+                "mean_value": round(float(valid.mean()), 3) if len(valid) > 0 else None,
+            })
+
+        _meta_cache = {
+            "source":      "Copernicus Marine Service — MOI GLO12 (Mercator Ocean International)",
+            "product":     "GLOBAL_ANALYSISFORECAST_PHY_001_024",
+            "variables":   var_list,
+            "depth_levels": depths,
+            "n_depths":    len(depths),
+            "dates":       dates,
+            "lat_range":   [float(ds[lat_key].values[0]),  float(ds[lat_key].values[-1])],
+            "lon_range":   [float(ds[lon_key].values[0]),  float(ds[lon_key].values[-1])],
+            "lat_count":   int(ds.sizes[lat_key]),
+            "lon_count":   int(ds.sizes[lon_key]),
+            "has_currents": ("uo" in ds.data_vars and "vo" in ds.data_vars),
+            "has_temperature": "thetao" in ds.data_vars,
+            "has_salinity":    "so" in ds.data_vars,
+        }
+        return _meta_cache
 
     return {
         "source":      "Copernicus Marine Service — MOI GLO12 (Mercator Ocean International)",
@@ -198,52 +224,62 @@ def get_depth_slice(
     depth     : target depth in metres (snapped to nearest real depth level)
     downsample: spatial downsampling factor (1 = full 205×325 grid)
     """
-    ds = _load_volumetric_dataset()
-    nc_var = _to_nc_name(variable)
-    if nc_var not in ds.data_vars:
-        return None
+    key = f"slice|{variable}|{date}|{depth}|{downsample}"
+    if key in _cache:
+        return _cache[key]
 
-    lat_key, lon_key = _coord_keys(ds)
+    with NETCDF_LOCK:
+        if key in _cache:
+            return _cache[key]
 
-    try:
-        if date:
-            time_sub = ds[nc_var].sel(time=date, method="nearest")
-        else:
-            time_sub = ds[nc_var].isel(time=-1)
-    except Exception:
-        return None
+        ds = _load_volumetric_dataset()
+        nc_var = _to_nc_name(variable)
+        if nc_var not in ds.data_vars:
+            return None
 
-    step = max(1, int(downsample))
-    time_sub = time_sub.isel(**{lat_key: slice(None, None, step), lon_key: slice(None, None, step)})
+        lat_key, lon_key = _coord_keys(ds)
 
-    # Forward-fill along depth axis so shallow ocean columns (like Palk Strait)
-    # maintain their sea-bottom ocean values at deep slices without breaking/tearing
-    vals_3d = time_sub.values.astype(np.float32)
-    vals_3d = _fill_vertical_bottom(vals_3d)
+        try:
+            if date:
+                time_sub = ds[nc_var].sel(time=date, method="nearest")
+            else:
+                time_sub = ds[nc_var].isel(time=-1)
+        except Exception:
+            return None
 
-    depth_idx = int(np.argmin(np.abs(ds.depth.values - float(depth))))
-    actual_depth = float(ds.depth.values[depth_idx])
-    raw = vals_3d[depth_idx]
+        step = max(1, int(downsample))
+        time_sub = time_sub.isel(**{lat_key: slice(None, None, step), lon_key: slice(None, None, step)})
 
-    valid = raw[~np.isnan(raw)]
-    raw_list = [[None if np.isnan(v) else round(float(v), 3) for v in row] for row in raw]
+        # Forward-fill along depth axis so shallow ocean columns (like Palk Strait)
+        # maintain their sea-bottom ocean values at deep slices without breaking/tearing
+        vals_3d = time_sub.values.astype(np.float32)
+        vals_3d = _fill_vertical_bottom(vals_3d)
 
-    return {
-        "variable":   variable,
-        "nc_name":    nc_var,
-        "date":       date if date else str(time_sub.time.values)[:10],
-        "depth":      round(actual_depth, 2),
-        "unit":       VOLUMETRIC_VARS.get(variable, {}).get("units", ""),
-        "long_name":  VOLUMETRIC_VARS.get(variable, {}).get("long_name", variable),
-        "lat":        [round(float(v), 4) for v in time_sub[lat_key].values],
-        "lon":        [round(float(v), 4) for v in time_sub[lon_key].values],
-        "values":     raw_list,
-        "min_value":  round(float(valid.min()),  3) if len(valid) > 0 else None,
-        "max_value":  round(float(valid.max()),  3) if len(valid) > 0 else None,
-        "mean_value": round(float(valid.mean()), 3) if len(valid) > 0 else None,
-        "downsample": step,
-        "source":     "Copernicus Marine ANFC — 4D Physics",
-    }
+        depth_idx = int(np.argmin(np.abs(ds.depth.values - float(depth))))
+        actual_depth = float(ds.depth.values[depth_idx])
+        raw = vals_3d[depth_idx]
+
+        valid = raw[~np.isnan(raw)]
+        raw_list = [[None if np.isnan(v) else round(float(v), 3) for v in row] for row in raw]
+
+        result = {
+            "variable":   variable,
+            "nc_name":    nc_var,
+            "date":       date if date else str(time_sub.time.values)[:10],
+            "depth":      round(actual_depth, 2),
+            "unit":       VOLUMETRIC_VARS.get(variable, {}).get("units", ""),
+            "long_name":  VOLUMETRIC_VARS.get(variable, {}).get("long_name", variable),
+            "lat":        [round(float(v), 4) for v in time_sub[lat_key].values],
+            "lon":        [round(float(v), 4) for v in time_sub[lon_key].values],
+            "values":     raw_list,
+            "min_value":  round(float(valid.min()),  3) if len(valid) > 0 else None,
+            "max_value":  round(float(valid.max()),  3) if len(valid) > 0 else None,
+            "mean_value": round(float(valid.mean()), 3) if len(valid) > 0 else None,
+            "downsample": step,
+            "source":     "Copernicus Marine ANFC — 4D Physics",
+        }
+        _cache[key] = result
+        return result
 
 
 def get_current_vectors(
@@ -258,71 +294,81 @@ def get_current_vectors(
     Returns per-point dicts with lat, lon, u, v, speed, and direction angle
     suitable for rendering arrow/cone glyphs in Three.js / Leaflet.
     """
-    ds = _load_volumetric_dataset()
-    if "uo" not in ds.data_vars or "vo" not in ds.data_vars:
-        return None
+    key = f"vectors|{date}|{depth}|{downsample}"
+    if key in _cache:
+        return _cache[key]
 
-    lat_key, lon_key = _coord_keys(ds)
+    with NETCDF_LOCK:
+        if key in _cache:
+            return _cache[key]
 
-    try:
-        if date:
-            u_time = ds["uo"].sel(time=date, method="nearest")
-            v_time = ds["vo"].sel(time=date, method="nearest")
-        else:
-            u_time = ds["uo"].isel(time=-1)
-            v_time = ds["vo"].isel(time=-1)
-    except Exception:
-        return None
+        ds = _load_volumetric_dataset()
+        if "uo" not in ds.data_vars or "vo" not in ds.data_vars:
+            return None
 
-    step  = max(1, int(downsample))
-    u_sub = u_time.isel(**{lat_key: slice(None, None, step), lon_key: slice(None, None, step)})
-    v_sub = v_time.isel(**{lat_key: slice(None, None, step), lon_key: slice(None, None, step)})
+        lat_key, lon_key = _coord_keys(ds)
 
-    u_3d = _fill_vertical_bottom(u_sub.values.astype(np.float32))
-    v_3d = _fill_vertical_bottom(v_sub.values.astype(np.float32))
+        try:
+            if date:
+                u_time = ds["uo"].sel(time=date, method="nearest")
+                v_time = ds["vo"].sel(time=date, method="nearest")
+            else:
+                u_time = ds["uo"].isel(time=-1)
+                v_time = ds["vo"].isel(time=-1)
+        except Exception:
+            return None
 
-    depth_idx = int(np.argmin(np.abs(ds.depth.values - float(depth))))
-    actual_depth = float(ds.depth.values[depth_idx])
-    u_vals = u_3d[depth_idx]
-    v_vals = v_3d[depth_idx]
+        step  = max(1, int(downsample))
+        u_sub = u_time.isel(**{lat_key: slice(None, None, step), lon_key: slice(None, None, step)})
+        v_sub = v_time.isel(**{lat_key: slice(None, None, step), lon_key: slice(None, None, step)})
 
-    lats   = [float(v) for v in u_sub[lat_key].values]
-    lons   = [float(v) for v in u_sub[lon_key].values]
-    speed  = np.sqrt(u_vals ** 2 + v_vals ** 2)
+        u_3d = _fill_vertical_bottom(u_sub.values.astype(np.float32))
+        v_3d = _fill_vertical_bottom(v_sub.values.astype(np.float32))
 
-    points = []
-    for i, lat_val in enumerate(lats):
-        for j, lon_val in enumerate(lons):
-            u_ij  = float(u_vals[i, j])
-            v_ij  = float(v_vals[i, j])
-            spd   = float(speed[i, j])
-            if np.isnan(u_ij) or np.isnan(v_ij):
-                continue
-            if spd < 0.005:           # skip near-zero vectors
-                continue
-            angle_deg = math.degrees(math.atan2(v_ij, u_ij))  # 0°=East, 90°=North
-            points.append({
-                "lat":       round(lat_val, 4),
-                "lon":       round(lon_val, 4),
-                "u":         round(u_ij,    4),
-                "v":         round(v_ij,    4),
-                "speed":     round(spd,     4),
-                "angle_deg": round(angle_deg, 2),
-            })
+        depth_idx = int(np.argmin(np.abs(ds.depth.values - float(depth))))
+        actual_depth = float(ds.depth.values[depth_idx])
+        u_vals = u_3d[depth_idx]
+        v_vals = v_3d[depth_idx]
 
-    valid_speed = speed[~np.isnan(speed)]
-    return {
-        "date":       date if date else str(u_time.time.values)[:10],
-        "depth":      round(actual_depth, 2),
-        "lat_count":  len(lats),
-        "lon_count":  len(lons),
-        "n_vectors":  len(points),
-        "min_speed":  round(float(valid_speed.min()),  4) if len(valid_speed) > 0 else None,
-        "max_speed":  round(float(valid_speed.max()),  4) if len(valid_speed) > 0 else None,
-        "mean_speed": round(float(valid_speed.mean()), 4) if len(valid_speed) > 0 else None,
-        "source":     "Copernicus Marine ANFC uo/vo — 4D Physics",
-        "points":     points,
-    }
+        lats   = [float(v) for v in u_sub[lat_key].values]
+        lons   = [float(v) for v in u_sub[lon_key].values]
+        speed  = np.sqrt(u_vals ** 2 + v_vals ** 2)
+
+        points = []
+        for i, lat_val in enumerate(lats):
+            for j, lon_val in enumerate(lons):
+                u_ij  = float(u_vals[i, j])
+                v_ij  = float(v_vals[i, j])
+                spd   = float(speed[i, j])
+                if np.isnan(u_ij) or np.isnan(v_ij):
+                    continue
+                if spd < 0.005:           # skip near-zero vectors
+                    continue
+                angle_deg = math.degrees(math.atan2(v_ij, u_ij))  # 0°=East, 90°=North
+                points.append({
+                    "lat":       round(lat_val, 4),
+                    "lon":       round(lon_val, 4),
+                    "u":         round(u_ij,    4),
+                    "v":         round(v_ij,    4),
+                    "speed":     round(spd,     4),
+                    "angle_deg": round(angle_deg, 2),
+                })
+
+        valid_speed = speed[~np.isnan(speed)]
+        res = {
+            "date":       date if date else str(u_time.time.values)[:10],
+            "depth":      round(actual_depth, 2),
+            "lat_count":  len(lats),
+            "lon_count":  len(lons),
+            "n_vectors":  len(points),
+            "min_speed":  round(float(valid_speed.min()),  4) if len(valid_speed) > 0 else None,
+            "max_speed":  round(float(valid_speed.max()),  4) if len(valid_speed) > 0 else None,
+            "mean_speed": round(float(valid_speed.mean()), 4) if len(valid_speed) > 0 else None,
+            "source":     "Copernicus Marine ANFC uo/vo — 4D Physics",
+            "points":     points,
+        }
+        _cache[key] = res
+        return res
 
 
 def get_model_depth_profile(
@@ -336,44 +382,45 @@ def get_model_depth_profile(
     at the nearest grid point to (lat, lon) for the given date.
     Used for model-vs-Argo dual-line comparison chart in the frontend.
     """
-    ds = _load_volumetric_dataset()
-    nc_var = _to_nc_name(variable)
-    if nc_var not in ds.data_vars:
-        # Fall back to temperature
-        nc_var = "thetao"
-        variable = "temperature"
+    with NETCDF_LOCK:
+        ds = _load_volumetric_dataset()
+        nc_var = _to_nc_name(variable)
+        if nc_var not in ds.data_vars:
+            # Fall back to temperature
+            nc_var = "thetao"
+            variable = "temperature"
 
-    lat_key, lon_key = _coord_keys(ds)
+        lat_key, lon_key = _coord_keys(ds)
 
-    try:
-        if date:
-            da = ds[nc_var].sel(time=date, method="nearest")
-        else:
-            da = ds[nc_var].isel(time=-1)
-        prof = da.sel(**{lat_key: lat, lon_key: lon}, method="nearest")
-    except Exception:
-        return None
+        try:
+            if date:
+                da = ds[nc_var].sel(time=date, method="nearest")
+            else:
+                da = ds[nc_var].isel(time=-1)
+            prof = da.sel(**{lat_key: lat, lon_key: lon}, method="nearest")
+        except Exception:
+            return None
 
-    depths = [round(float(d), 2) for d in ds.depth.values]
-    vals   = [None if np.isnan(v) else round(float(v), 4) for v in prof.values]
-    valid  = [v for v in vals if v is not None]
+        depths = [round(float(d), 2) for d in ds.depth.values]
+        vals   = [None if np.isnan(v) else round(float(v), 4) for v in prof.values]
+        valid  = [v for v in vals if v is not None]
 
-    return {
-        "variable":  variable,
-        "nc_name":   nc_var,
-        "date":      date if date else str(prof.time.values)[:10],
-        "lat":       round(float(prof[lat_key].values), 4),
-        "lon":       round(float(prof[lon_key].values), 4),
-        "depths":    depths,
-        "values":    vals,
-        "unit":      VOLUMETRIC_VARS.get(variable, {}).get("units", ""),
-        "long_name": VOLUMETRIC_VARS.get(variable, {}).get("long_name", variable),
-        "n_levels":  len(depths),
-        "n_valid":   len(valid),
-        "min_value": round(float(min(valid)), 3) if valid else None,
-        "max_value": round(float(max(valid)), 3) if valid else None,
-        "source":    "Copernicus Marine ANFC — 4D Physics",
-    }
+        return {
+            "variable":  variable,
+            "nc_name":   nc_var,
+            "date":      date if date else str(prof.time.values)[:10],
+            "lat":       round(float(prof[lat_key].values), 4),
+            "lon":       round(float(prof[lon_key].values), 4),
+            "depths":    depths,
+            "values":    vals,
+            "unit":      VOLUMETRIC_VARS.get(variable, {}).get("units", ""),
+            "long_name": VOLUMETRIC_VARS.get(variable, {}).get("long_name", variable),
+            "n_levels":  len(depths),
+            "n_valid":   len(valid),
+            "min_value": round(float(min(valid)), 3) if valid else None,
+            "max_value": round(float(max(valid)), 3) if valid else None,
+            "source":    "Copernicus Marine ANFC — 4D Physics",
+        }
 
 
 def get_model_profile(lat: float, lon: float, date: Optional[str] = None, variable: str = "temperature"):
@@ -392,63 +439,58 @@ def get_isosurface_grid(
 
     The grid is spatially downsampled (every 4th lat/lon point) and depth-
     filtered to keep the response payload manageable (~few MB).
-
-    Parameters
-    ----------
-    variable    : friendly name ('temperature' or 'salinity')
-    date        : ISO date string, defaults to latest time step
-    depth_range : (min_m, max_m) tuple to restrict depth extent (default: 0–500m)
     """
-    ds = _load_volumetric_dataset()
-    nc_var = _to_nc_name(variable)
-    if nc_var not in ds.data_vars:
-        nc_var = "thetao"
-        variable = "temperature"
+    with NETCDF_LOCK:
+        ds = _load_volumetric_dataset()
+        nc_var = _to_nc_name(variable)
+        if nc_var not in ds.data_vars:
+            nc_var = "thetao"
+            variable = "temperature"
 
-    lat_key, lon_key = _coord_keys(ds)
+        lat_key, lon_key = _coord_keys(ds)
 
-    # Depth filtering — restrict to upper 500 m by default for manageable payload
-    if depth_range is None:
-        depth_range = (0.0, 500.0)
-    d_min, d_max = depth_range
+        # Depth filtering — restrict to upper 500 m by default for manageable payload
+        if depth_range is None:
+            depth_range = (0.0, 500.0)
+        d_min, d_max = depth_range
 
-    try:
-        if date:
-            da = ds[nc_var].sel(time=date, method="nearest")
-        else:
-            da = ds[nc_var].isel(time=-1)
-        # Slice depths within range
-        da = da.sel(depth=slice(d_min, d_max))
-    except Exception:
-        return None
+        try:
+            if date:
+                da = ds[nc_var].sel(time=date, method="nearest")
+            else:
+                da = ds[nc_var].isel(time=-1)
+            # Slice depths within range
+            da = da.sel(depth=slice(d_min, d_max))
+        except Exception:
+            return None
 
-    # Downsample spatial grid — every 4th point to control payload
-    SPATIAL_STEP = 4
-    da = da.isel(
-        **{lat_key: slice(None, None, SPATIAL_STEP),
-           lon_key: slice(None, None, SPATIAL_STEP)}
-    )
+        # Downsample spatial grid — every 4th point to control payload
+        SPATIAL_STEP = 4
+        da = da.isel(
+            **{lat_key: slice(None, None, SPATIAL_STEP),
+               lon_key: slice(None, None, SPATIAL_STEP)}
+        )
 
-    raw_3d = _fill_vertical_bottom(da.values.astype(np.float32))   # shape: (depth, lat, lon)
-    valid  = raw_3d[~np.isnan(raw_3d)]
+        raw_3d = _fill_vertical_bottom(da.values.astype(np.float32))   # shape: (depth, lat, lon)
+        valid  = raw_3d[~np.isnan(raw_3d)]
 
-    return {
-        "variable":   variable,
-        "nc_name":    nc_var,
-        "date":       str(da.time.values)[:10],
-        "unit":       VOLUMETRIC_VARS.get(variable, {}).get("units", ""),
-        "long_name":  VOLUMETRIC_VARS.get(variable, {}).get("long_name", variable),
-        "depths":     [round(float(d), 2) for d in da.depth.values],
-        "lats":       [round(float(v), 4) for v in da[lat_key].values],
-        "lons":       [round(float(v), 4) for v in da[lon_key].values],
-        "shape":      list(raw_3d.shape),     # [n_depth, n_lat, n_lon]
-        "min_value":  round(float(valid.min()),  3) if len(valid) > 0 else None,
-        "max_value":  round(float(valid.max()),  3) if len(valid) > 0 else None,
-        "mean_value": round(float(valid.mean()), 3) if len(valid) > 0 else None,
-        "source":     "CMEMS MOI GLO12 — real 3D volume",
-        # Flattened array — NaN encoded as -9999 for compact JSON transmission
-        "flat_values": [
-            round(float(v), 3) if not np.isnan(v) else -9999.0
-            for v in raw_3d.ravel()
-        ],
-    }
+        return {
+            "variable":   variable,
+            "nc_name":    nc_var,
+            "date":       str(da.time.values)[:10],
+            "unit":       VOLUMETRIC_VARS.get(variable, {}).get("units", ""),
+            "long_name":  VOLUMETRIC_VARS.get(variable, {}).get("long_name", variable),
+            "depths":     [round(float(d), 2) for d in da.depth.values],
+            "lats":       [round(float(v), 4) for v in da[lat_key].values],
+            "lons":       [round(float(v), 4) for v in da[lon_key].values],
+            "shape":      list(raw_3d.shape),     # [n_depth, n_lat, n_lon]
+            "min_value":  round(float(valid.min()),  3) if len(valid) > 0 else None,
+            "max_value":  round(float(valid.max()),  3) if len(valid) > 0 else None,
+            "mean_value": round(float(valid.mean()), 3) if len(valid) > 0 else None,
+            "source":     "CMEMS MOI GLO12 — real 3D volume",
+            # Flattened array — NaN encoded as -9999 for compact JSON transmission
+            "flat_values": [
+                round(float(v), 3) if not np.isnan(v) else -9999.0
+                for v in raw_3d.ravel()
+            ],
+        }

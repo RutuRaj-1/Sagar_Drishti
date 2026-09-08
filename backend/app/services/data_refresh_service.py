@@ -28,6 +28,7 @@ import requests
 import xarray as xr
 
 from app import config
+from app.services.dataset_lock import NETCDF_LOCK
 from app.services.dataset_registry import registry
 from app.services.data_validator import (
     validate_glider_mission,
@@ -67,30 +68,31 @@ class DataRefreshService:
             if not os.path.exists(config.NC_PATH):
                 return {"status": "delayed", "message": "Historical NetCDF file not found on disk."}
             
-            with xr.open_dataset(config.NC_PATH, engine="netcdf4") as ds_raw:
-                ds = ds_raw.sel(time=slice("2022-06-01", "2026-09-06"))
-                t_min = str(ds.time.values[0])[:10]
-                t_max = str(ds.time.values[-1])[:10]
-                total_records = int(ds.sizes.get("time", 0))
+            with NETCDF_LOCK:
+                with xr.open_dataset(config.NC_PATH, engine="netcdf4") as ds_raw:
+                    ds = ds_raw.sel(time=slice("2022-06-01", "2026-09-06"))
+                    t_min = str(ds.time.values[0])[:10]
+                    t_max = str(ds.time.values[-1])[:10]
+                    total_records = int(ds.sizes.get("time", 0))
 
-            # Check for any new incremental daily slices
-            inc_files = []
-            if os.path.exists(config.CMEMS_DAILY_DIR):
-                for root, _, files in os.walk(config.CMEMS_DAILY_DIR):
-                    for f in files:
-                        if f.endswith(".nc"):
-                            inc_files.append(os.path.join(root, f))
-            
-            if inc_files:
-                inc_files.sort()
-                try:
-                    with xr.open_dataset(inc_files[-1], engine="netcdf4") as inc_ds:
-                        t_max_inc = str(inc_ds.time.values[-1])[:10]
-                        if t_max_inc > t_max:
-                            t_max = t_max_inc
-                            total_records += len(inc_files)
-                except Exception as ex:
-                    logger.debug(f"Could not read incremental slice {inc_files[-1]}: {ex}")
+                # Check for any new incremental daily slices
+                inc_files = []
+                if os.path.exists(config.CMEMS_DAILY_DIR):
+                    for root, _, files in os.walk(config.CMEMS_DAILY_DIR):
+                        for f in files:
+                            if f.endswith(".nc"):
+                                inc_files.append(os.path.join(root, f))
+                
+                if inc_files:
+                    inc_files.sort()
+                    try:
+                        with xr.open_dataset(inc_files[-1], engine="netcdf4") as inc_ds:
+                            t_max_inc = str(inc_ds.time.values[-1])[:10]
+                            if t_max_inc > t_max:
+                                t_max = t_max_inc
+                                total_records += len(inc_files)
+                    except Exception as ex:
+                        logger.debug(f"Could not read incremental slice {inc_files[-1]}: {ex}")
 
             now_iso = datetime.now(timezone.utc).isoformat()
             return {
